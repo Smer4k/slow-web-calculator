@@ -19,6 +19,19 @@ a:hover {
   border: .05rem solid #fff;
 }
 
+.image {
+  width: 10%;
+}
+
+.box {
+  display: flex;
+  align-items: center;
+  gap: 25px;
+}
+
+p {
+  margin-bottom: 0;
+}
 
 /*
  * Base structure
@@ -26,7 +39,6 @@ a:hover {
 
 html,
 body {
-  height: 100%;
   background-color: #333;
 }
 

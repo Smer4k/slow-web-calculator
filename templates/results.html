@@ -26,10 +26,10 @@
       <h1 class="cover-heading">Список выражений</h1>
       <div class="list-group">
         {{range .List }}
-          <div class="list-group-item list-group-item-info">
-            <div class="box bg-info text-black p-3">
-              <img class="image" src="static/time_5962359.png" alt=""> 
-              <p class="lead text-left">{{ . }}</p>
+          <div class="list-group-item list-group-item-{{ .Status }}">
+            <div class="box bg-{{ .Status }} text-black p-3">
+              <img class="image-icon" src="static/{{ .Icon }}.png" alt=""> 
+              <p class="lead text-left">{{ .Answer }}</p>
             </div>
           </div>
         {{end}}

@@ -19,7 +19,8 @@ a:hover {
   border: .05rem solid #fff;
 }
 
-.image {
+/* Custom parameters */
+.image-icon {
   width: 10%;
 }
 

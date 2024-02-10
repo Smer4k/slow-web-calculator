@@ -31,13 +31,19 @@
     <main role="main" class="inner cover">
       <h1 class="cover-heading">Изменение настроек сервера</h1><br>
       <form action="/settings" method="post">
-        <input type="text" name="time_+" id="time_+" placeholder="Введите время для операции +" class="form-control"><br>
-        <input type="text" name="time_-" id="time_-" placeholder="Введите время для операции -" class="form-control"><br>
-        <input type="text" name="time_*" id="time_*" placeholder="Введите время для операции *" class="form-control"><br>
-        <input type="text" name="time_/" id="time_/" placeholder="Введите время для операции /" class="form-control"><br>
-        <input type="text" name="time_out" id="time_out" placeholder="Введите время отображения неактивного сервера" class="form-control"><br>
-        <button class="btn btn-warning">Изменить</button>
+        <label for="time_+">Время выполнения сложения (Сек.)</label>
+        <input type="number" name="time_+" id="time_+" value="200" placeholder="Введите время для операции +" class="form-control"><br>
+        <label for="time_-">Время выполнения вычетания (Сек.)</label>
+        <input type="number" name="time_-" id="time_-" value="200" placeholder="Введите время для операции -" class="form-control"><br>
+        <label for="time_*">Время выполнения умножения (Сек.)</label>
+        <input type="number" name="time_*" id="time_*" value="200" placeholder="Введите время для операции *" class="form-control"><br>
+        <label for="time_/">Время выполнения деления (Сек.)</label>
+        <input type="number" name="time_/" id="time_/" value="200" placeholder="Введите время для операции /" class="form-control"> <br>
+        <label for="time_out">Время отображения неактивного сервера (Сек.)</label>
+        <input type="number" name="time_out" id="time_out" value="200" placeholder="Введите время отображения неактивного сервера" class="form-control"><br>
+        <button class="btn btn-warning">Сохранить</button>
       </form>
+  
     </main>
     
     <footer class="mastfoot mt-auto">

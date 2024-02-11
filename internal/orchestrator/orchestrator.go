@@ -36,20 +36,48 @@ func (o *Orchestrator) InitRoutes() {
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("../../templates/static/"))))
 }
 
-func (o *Orchestrator) ExpressionParser(s string) (*datatypes.Expression, error) {
-	s = strings.ReplaceAll(s, " ", "")
-	lenS := len(s)
-	if lenS <= 2 { // выражение должно хотя бы быть формата "2+2"
-		return nil, errors.New("Невалидное выражение, выражение слишком маленькое")
+func (o *Orchestrator) IsValidExpression(s string) (bool, error) {
+	s = strings.ToLower(s)
+	if len(s) <= 2 { // выражение должно хотя бы быть формата "2+2"
+		return false, errors.New("Невалидное выражение, выражение слишком маленькое")
 	}
+	if strings.ContainsAny(s, "№!@#$%^&()~`qwertyuiop[]\\asdfghjkl;'zxcvbnm,.?йцукенгшщзхъфывапролджэячсмитьбю.|\":_ё=") {
+		return false, errors.New("Выражение содержит недопустимые символы")
+	}
+	temp := ""
+	for _, ch := range s { // <----- здесь баг
+		switch temp {
+		case "*", "/", "+", "-": // переделать, мб нужно добавить возможность использовать "2 + -3"
+			switch string(ch) {
+			case "*", "/", "+", "-":
+				return false, errors.New("Выражение неправильного формата, нельзя чтобы шло два и более \"++\" или \"+-\" и т.д")
+			}
+		default:
+			temp = string(ch)
+		}
+	}
+	return true, nil
+}
+
+// разбивает строку выражения на datatypes.SubExpression и возвращает тип datatypes.Expression
+func (o *Orchestrator) ExpressionParser(s string) *datatypes.Expression {
+	s = strings.ReplaceAll(s, " ", "")
 
 	chars := strings.Split(s, "")
-	SubExpressions := make([]datatypes.SubExpression, 0, 100)
+	countOperators := 0
+	for _, ch := range chars {
+		switch ch {
+		case "*", "/", "+", "-":
+			countOperators++
+		}
+	}
+
+	SubExpressions := make([]datatypes.SubExpression, 0, countOperators)
 	newSubExpr := &datatypes.SubExpression{}
 	temp := ""
 	notFirst := false
 
-	for i, ch := range chars {
+	for _, ch := range chars {
 		if ch == "+" || ch == "-" || ch == "*" || ch == "/" {
 			if notFirst {
 				newSubExpr.Right = temp
@@ -66,58 +94,35 @@ func (o *Orchestrator) ExpressionParser(s string) (*datatypes.Expression, error)
 			}
 		}
 		temp += ch
-		if i == lenS-1 { // добавляем последний элемент
-			newSubExpr.Right = temp
-			SubExpressions = append(SubExpressions, *newSubExpr)
-		}
 	}
-	ans := SortExpression(SubExpressions)
-	return datatypes.NewExpression(&ans, uint(len(ans))), nil
+	newSubExpr.Right = temp
+	SubExpressions = append(SubExpressions, *newSubExpr)
+
+	ans := SortExpressions(SubExpressions)
+	return datatypes.NewExpression(&ans, &SubExpressions)
 }
 
-// переделать
-func SortExpression(SubExpressions []datatypes.SubExpression) map[int]datatypes.SubExpression {
-	answer := make(map[int]datatypes.SubExpression)
+// сортировка по приоритету
+func SortExpressions(SubExpressions []datatypes.SubExpression) map[int]int {
+	answer := make(map[int]int)
 
 	len := len(SubExpressions)
+
 	priority := 0
 
-	for i := 0; i < len; i++ {
-		switch SubExpressions[i].Operator {
-		case "*":
-			if i == len-1 {
-				SubExpressions[i-1].Right = "?"
-				answer[priority] = SubExpressions[i]
-				priority++
-				answer[priority] = SubExpressions[i-1]
-				priority++
-			} else if i == 0 {
-				SubExpressions[i+1].Left = "?"
-				answer[priority] = SubExpressions[i]
-				priority++
-				answer[priority] = SubExpressions[i+1]
-				priority++
-			}
-		case "/":
-			if i == len-1 {
-				SubExpressions[i-1].Right = "?"
-				answer[priority] = SubExpressions[i]
-				priority++
-				answer[priority] = SubExpressions[i-1]
-				priority++
-			} else if i == 0 {
-				SubExpressions[i+1].Left = "?"
-				answer[priority] = SubExpressions[i]
-				priority++
-				answer[priority] = SubExpressions[i+1]
-				priority++
-			} else {
-				SubExpressions[i+1].Left = "?"
-				SubExpressions[i-1].Right = "?"
-				answer[priority] = SubExpressions[i]
-				priority++
-			}
+	for i := 0; i < len; i++ { // сортировка для * и /
+		if SubExpressions[i].Operator == "*" || SubExpressions[i].Operator == "/" {
+			answer[priority] = i
+			priority++
 		}
 	}
+
+	for i := 0; i < len; i++ { // сортировка для + и -
+		if SubExpressions[i].Operator == "+" || SubExpressions[i].Operator == "-" {
+			answer[priority] = i
+			priority++
+		}
+	}
+
 	return answer
 }

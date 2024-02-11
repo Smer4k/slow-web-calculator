@@ -1,20 +1,19 @@
 package datatypes
 
 type Expression struct {
-	List  *map[int]SubExpression
-	Count uint
+	ListPriority  *map[int]int
+	ListSubExpr *[]SubExpression
 }
 
 type SubExpression struct {
 	Left string
 	Right string
 	Operator string
-	Answer int
 }
 
-func NewExpression(list *map[int]SubExpression, count uint) *Expression {
+func NewExpression(listPriority *map[int]int, listSubExpr *[]SubExpression) *Expression {
 	return &Expression{
-		List:  list,
-		Count: count,
+		ListPriority:  listPriority,
+		ListSubExpr: listSubExpr,
 	}
 }

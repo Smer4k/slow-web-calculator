@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 )
@@ -15,15 +16,24 @@ func (o *Orchestrator) handleGetCalculator(w http.ResponseWriter, r *http.Reques
 }
 
 func (o *Orchestrator) handlePostCalculator(w http.ResponseWriter, r *http.Request) {
+	defer http.Redirect(w, r, "/calculator", http.StatusSeeOther)
 	vals := url.Values{}
 	expression := r.FormValue("expression")
-	vals.Add("expression", expression)
-	resp, err := http.PostForm("http://localhost:9090/solvingExpression", vals)
-	if err != nil {
-		panic(err)
+	ok, err := o.IsValidExpression(expression)
+
+	if ok {
+		newExpr := o.ExpressionParser(expression)
+		fmt.Println(newExpr.ListPriority, newExpr.ListSubExpr)
+		vals.Add("expression", expression)
+		resp, err := http.PostForm("http://localhost:9090/solvingExpression", vals)
+		if err != nil {
+			panic(err)
+		}
+		defer resp.Body.Close()
+	} else {
+		fmt.Println(err)
 	}
-	defer resp.Body.Close()
-	http.Redirect(w, r, "/calculator", http.StatusSeeOther)
+
 }
 
 // Settings.html

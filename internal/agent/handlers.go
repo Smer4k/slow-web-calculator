@@ -1,18 +1,19 @@
 package agent
 
 import (
+	"fmt"
 	"net/http"
-	"net/url"
 )
 
 func (a *Agent) solvingExpression(w http.ResponseWriter, r *http.Request) {
-	val := url.Values{}
-	val.Add("testVal", r.FormValue("expression"))
-	resp, err := http.PostForm(a.AddrMainServer+"postResult", val)
+
+	resp, err := http.PostForm(a.AddrMainServer+"postResult", nil)
 	if err != nil {
 		panic(err)
 	}
 	defer resp.Body.Close()
+	val := r.FormValue("expression")
+	fmt.Println(val)
 }
 
 func (a *Agent) redirectToMainServer(w http.ResponseWriter, r *http.Request) {

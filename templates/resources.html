@@ -17,17 +17,24 @@
           <a class="nav-link" href="/calculator">Calculator</a>
           <a class="nav-link" href="/results">Results</a>
           <a class="nav-link" href="/settings">Settings</a>
-          <a class="nav-link" href="/resources">Resources</a>
+          <a class="nav-link active" href="/resources">Resources</a>
         </nav>
       </div>
     </header>
   
     <main role="main" class="inner cover">
-      <h1 class="cover-heading">Cover your page.</h1>
-      <p class="lead">Cover is a one-page template for building simple and beautiful home pages. Download, edit the text, and add your own fullscreen background photo to make it your own.</p>
-      <p class="lead">
-        <a href="#" class="btn btn-lg btn-secondary">Learn more</a>
-      </p>
+      <h1 class="cover-heading">Список серверов</h1>
+      <div class="list-group">
+        {{ range .List }}
+          <div class="list-group-item list-group-item-{{ .Status }}">
+            <div class="box bg-{{ .Status }} text-black p-3">
+              <img class="image-icon" src="static/{{ .Icon }}.png" alt=""> 
+              <p class="lead text-left">{{ .ServerUrl }}</p>
+              <p class="lead text-left">Last ping: {{ .LastPing }}</p>
+            </div>
+          </div>
+        {{end}}
+      </div>
     </main>
     
     <footer class="mastfoot mt-auto">
@@ -36,10 +43,5 @@
       </div>
     </footer>
   </div>
-  
-  
-      
-    
-
   </body>
 </html>

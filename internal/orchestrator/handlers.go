@@ -3,7 +3,9 @@ package orchestrator
 import (
 	"fmt"
 	"net/http"
-	"net/url"
+
+	"github.com/Smer4k/slow-web-calculator/internal/database"
+	"github.com/Smer4k/slow-web-calculator/internal/datatypes"
 )
 
 func (o *Orchestrator) handleGetIndex(w http.ResponseWriter, r *http.Request) {
@@ -17,21 +19,22 @@ func (o *Orchestrator) handleGetCalculator(w http.ResponseWriter, r *http.Reques
 
 func (o *Orchestrator) handlePostCalculator(w http.ResponseWriter, r *http.Request) {
 	defer http.Redirect(w, r, "/calculator", http.StatusSeeOther)
-	vals := url.Values{}
 	expression := r.FormValue("expression")
 	ok, err := o.IsValidExpression(expression)
 
 	if ok {
 		newExpr := o.ExpressionParser(expression)
-		fmt.Println(newExpr.ListPriority, newExpr.ListSubExpr)
-		vals.Add("expression", expression)
-		resp, err := http.PostForm("http://localhost:9090/solvingExpression", vals)
-		if err != nil {
-			panic(err)
+		if err = database.AddExpression(expression, &newExpr, 2, "work"); err != nil {
+			fmt.Println(err)
+			return
 		}
-		defer resp.Body.Close()
+		o.ListExpr = append(o.ListExpr, newExpr)
 	} else {
 		fmt.Println(err)
+		if err = database.AddExpression(expression, nil, 0, "fail"); err != nil {
+			fmt.Println(err)
+			return
+		}
 	}
 
 }
@@ -52,4 +55,9 @@ func (o *Orchestrator) handleGetResult(w http.ResponseWriter, r *http.Request) {
 
 func (o *Orchestrator) handlePostResult(w http.ResponseWriter, r *http.Request) {
 
+}
+
+func (o *Orchestrator) handlePostAddServer(w http.ResponseWriter, r *http.Request) {
+	val := r.FormValue("server")
+	o.ListServers = append(o.ListServers, datatypes.Server{Url: val, Status: 1})
 }

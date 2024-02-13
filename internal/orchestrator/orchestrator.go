@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"errors"
+	"fmt"
 	"html/template"
 	"net/http"
 	"strings"
@@ -11,27 +12,37 @@ import (
 )
 
 type Orchestrator struct {
-	Router *mux.Router
-	Tmpl   *template.Template
-	Data   any
+	Router      *mux.Router
+	Tmpl        *template.Template
+	ListExpr    []datatypes.Expression
+	ListServers []datatypes.Server
+	Data        any
 }
 
 func NewOrchestrator() *Orchestrator {
 	o := &Orchestrator{
-		Router: mux.NewRouter(),
-		Tmpl:   template.Must(template.ParseGlob("../../templates/*.html")),
+		Router:     mux.NewRouter(),
+		Tmpl:       template.Must(template.ParseGlob("../../templates/*.html")),
+		ListExpr:   []datatypes.Expression{},
+		ListServers: []datatypes.Server{},
 	}
 	return o
 }
 
 func (o *Orchestrator) InitRoutes() {
 	o.Router.HandleFunc("/", o.handleGetIndex).Methods(http.MethodGet)
+	
 	o.Router.HandleFunc("/calculator", o.handleGetCalculator).Methods(http.MethodGet)
 	o.Router.HandleFunc("/calculator", o.handlePostCalculator).Methods(http.MethodPost)
+	
 	o.Router.HandleFunc("/settings", o.handleGetSettings).Methods(http.MethodGet)
 	o.Router.HandleFunc("/settings", o.handlePostSettings).Methods(http.MethodPost)
+
 	o.Router.HandleFunc("/results", o.handleGetResult).Methods(http.MethodGet)
-	o.Router.HandleFunc("/postResult", o.handlePostResult).Methods(http.MethodPost)
+	o.Router.HandleFunc("/results", o.handlePostResult).Methods(http.MethodPost)
+
+	o.Router.HandleFunc("/addServer", o.handlePostAddServer).Methods(http.MethodPost)
+
 	http.Handle("/", o.Router)
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("../../templates/static/"))))
 }
@@ -42,25 +53,41 @@ func (o *Orchestrator) IsValidExpression(s string) (bool, error) {
 		return false, errors.New("Невалидное выражение, выражение слишком маленькое")
 	}
 	if strings.ContainsAny(s, "№!@#$%^&()~`qwertyuiop[]\\asdfghjkl;'zxcvbnm,.?йцукенгшщзхъфывапролджэячсмитьбю.|\":_ё=") {
-		return false, errors.New("Выражение содержит недопустимые символы")
+		return false, errors.New("Невалидное выражение, выражение содержит недопустимые символы")
 	}
+
 	temp := ""
-	for _, ch := range s { // <----- здесь баг
+	for i, ch := range s {
 		switch temp {
-		case "*", "/", "+", "-": // переделать, мб нужно добавить возможность использовать "2 + -3"
+		case "*", "/", "+", "-":
 			switch string(ch) {
-			case "*", "/", "+", "-":
-				return false, errors.New("Выражение неправильного формата, нельзя чтобы шло два и более \"++\" или \"+-\" и т.д")
+			case "*", "/", "+":
+				return false, errors.New(fmt.Sprintf("Невалидное выражение, недопускается \"%s%s\"", temp, string(s[i])))
+			case "-":
+				if i+1 < len(s) {
+					switch string(s[i+1]) {
+					case "*", "/", "+", "-":
+						return false, errors.New(fmt.Sprintf("Невалидное выражение, недопускается \"%s%s%s\"", temp, string(s[i]), string(s[i+1])))
+					}
+				}
+				temp = string(ch)
+			default:
+				temp = string(ch)
 			}
 		default:
 			temp = string(ch)
 		}
 	}
+	switch string(s[len(s)-1]) {
+	case "*", "/", "+", "-":
+		return false, errors.New(fmt.Sprintf("Невалидное выражение, в конце выражения не может быть \"%s\"", string(s[len(s)-1])))
+	}
 	return true, nil
+
 }
 
 // разбивает строку выражения на datatypes.SubExpression и возвращает тип datatypes.Expression
-func (o *Orchestrator) ExpressionParser(s string) *datatypes.Expression {
+func (o *Orchestrator) ExpressionParser(s string) datatypes.Expression {
 	s = strings.ReplaceAll(s, " ", "")
 
 	chars := strings.Split(s, "")
@@ -77,15 +104,24 @@ func (o *Orchestrator) ExpressionParser(s string) *datatypes.Expression {
 	temp := ""
 	notFirst := false
 
-	for _, ch := range chars {
+	for i, ch := range chars {
 		if ch == "+" || ch == "-" || ch == "*" || ch == "/" {
 			if notFirst {
+				switch chars[i-1] {
+				case "+", "-", "/", "*":
+					temp += ch
+					continue
+				}
 				newSubExpr.Right = temp
 				SubExpressions = append(SubExpressions, *newSubExpr)
 				newSubExpr = &datatypes.SubExpression{Left: temp, Operator: ch}
 				temp = ""
 				continue
-			} else { // первое выражение
+			} else { // первое выражение  2+-2
+				if i == 0 {
+					temp += ch
+					continue
+				}
 				newSubExpr.Left = temp
 				newSubExpr.Operator = ch
 				temp = ""
@@ -99,7 +135,7 @@ func (o *Orchestrator) ExpressionParser(s string) *datatypes.Expression {
 	SubExpressions = append(SubExpressions, *newSubExpr)
 
 	ans := SortExpressions(SubExpressions)
-	return datatypes.NewExpression(&ans, &SubExpressions)
+	return *datatypes.NewExpression(&ans, &SubExpressions)
 }
 
 // сортировка по приоритету

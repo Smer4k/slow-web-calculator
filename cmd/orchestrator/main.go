@@ -18,6 +18,6 @@ func main() {
 	o := orchestrator.NewOrchestrator()
 	o.InitRoutes()
 	port := ":8080"
-	fmt.Printf("Сервер был успешно запущен и доступен по адресу \"http://localhost:%s/\"\n", port)
+	fmt.Printf("Сервер был успешно запущен и доступен по адресу \"http://localhost%s/\"\n", port)
 	http.ListenAndServe(port, nil)
 }

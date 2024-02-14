@@ -16,6 +16,11 @@ type Server struct {
 	Status int
 }
 
+type Data struct {
+	List []any
+	Done bool
+}
+
 func NewExpression(listPriority *map[int]int, listSubExpr *[]SubExpression) *Expression {
 	return &Expression{
 		ListPriority: listPriority,

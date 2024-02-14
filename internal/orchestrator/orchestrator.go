@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Smer4k/slow-web-calculator/internal/datatypes"
 	"github.com/gorilla/mux"
@@ -16,14 +17,14 @@ type Orchestrator struct {
 	Tmpl        *template.Template
 	ListExpr    []datatypes.Expression
 	ListServers []datatypes.Server
-	Data        any
+	Data        datatypes.Data
 }
 
 func NewOrchestrator() *Orchestrator {
 	o := &Orchestrator{
-		Router:     mux.NewRouter(),
-		Tmpl:       template.Must(template.ParseGlob("../../templates/*.html")),
-		ListExpr:   []datatypes.Expression{},
+		Router:      mux.NewRouter(),
+		Tmpl:        template.Must(template.ParseGlob("../../templates/*.html")),
+		ListExpr:    []datatypes.Expression{},
 		ListServers: []datatypes.Server{},
 	}
 	return o
@@ -31,10 +32,10 @@ func NewOrchestrator() *Orchestrator {
 
 func (o *Orchestrator) InitRoutes() {
 	o.Router.HandleFunc("/", o.handleGetIndex).Methods(http.MethodGet)
-	
+
 	o.Router.HandleFunc("/calculator", o.handleGetCalculator).Methods(http.MethodGet)
 	o.Router.HandleFunc("/calculator", o.handlePostCalculator).Methods(http.MethodPost)
-	
+
 	o.Router.HandleFunc("/settings", o.handleGetSettings).Methods(http.MethodGet)
 	o.Router.HandleFunc("/settings", o.handlePostSettings).Methods(http.MethodPost)
 
@@ -45,6 +46,32 @@ func (o *Orchestrator) InitRoutes() {
 
 	http.Handle("/", o.Router)
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("../../templates/static/"))))
+	o.StartPingAgents()
+}
+
+func (o *Orchestrator) StartPingAgents() {
+	ticker := time.NewTicker(10 * time.Second)
+	go func() {
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				if len(o.ListServers) != 0 {
+					for _, agent := range o.ListServers {
+						resp, err := http.Get(agent.Url)
+						if err != nil {
+							fmt.Println(err)
+						}
+						if resp.StatusCode == http.StatusOK {
+							fmt.Println(agent.Url, "Работает исправно")
+						}
+					}
+				} else {
+					fmt.Println("Нету подключенных агентов")
+				}
+			}
+		}
+	}()
 }
 
 func (o *Orchestrator) IsValidExpression(s string) (bool, error) {
@@ -117,7 +144,7 @@ func (o *Orchestrator) ExpressionParser(s string) datatypes.Expression {
 				newSubExpr = &datatypes.SubExpression{Left: temp, Operator: ch}
 				temp = ""
 				continue
-			} else { // первое выражение  2+-2
+			} else { // первое выражение
 				if i == 0 {
 					temp += ch
 					continue

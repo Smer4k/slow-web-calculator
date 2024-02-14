@@ -54,10 +54,15 @@ func (o *Orchestrator) handleGetResult(w http.ResponseWriter, r *http.Request) {
 }
 
 func (o *Orchestrator) handlePostResult(w http.ResponseWriter, r *http.Request) {
-
+	
 }
 
 func (o *Orchestrator) handlePostAddServer(w http.ResponseWriter, r *http.Request) {
-	val := r.FormValue("server")
+	val := r.PostFormValue("server")
+	for _, serv := range o.ListServers {
+		if serv.Url == val {
+			return
+		}
+	}
 	o.ListServers = append(o.ListServers, datatypes.Server{Url: val, Status: 1})
 }

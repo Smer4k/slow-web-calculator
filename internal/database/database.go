@@ -13,8 +13,7 @@ import (
 func init() {
 	db, err := sql.Open("sqlite3", "../../internal/database/database.db")
 	if err != nil {
-		fmt.Println("Ошибка при открытии базы данных:", err)
-		return
+		panic(err)
 	}
 	defer db.Close()
 
@@ -29,8 +28,7 @@ func init() {
 		)
 	`)
 	if err != nil {
-		fmt.Println("Ошибка при создании таблицы:", err)
-		return
+		panic(err)
 	}
 	fmt.Println("Таблица expressions успешно создана в базе данных или уже существует.")
 }

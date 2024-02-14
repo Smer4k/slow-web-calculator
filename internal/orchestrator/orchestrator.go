@@ -24,8 +24,8 @@ func NewOrchestrator() *Orchestrator {
 	o := &Orchestrator{
 		Router:      mux.NewRouter(),
 		Tmpl:        template.Must(template.ParseGlob("../../templates/*.html")),
-		ListExpr:    []datatypes.Expression{},
-		ListServers: []datatypes.Server{},
+		ListExpr:    make([]datatypes.Expression, 0),
+		ListServers: make([]datatypes.Server, 0, 3),
 	}
 	return o
 }
@@ -49,25 +49,32 @@ func (o *Orchestrator) InitRoutes() {
 	o.StartPingAgents()
 }
 
+// Запускает бесконечную горутину и каждые 5 секунд проверяет агентов на работоспасобность (мониторинг)
 func (o *Orchestrator) StartPingAgents() {
 	ticker := time.NewTicker(10 * time.Second)
 	go func() {
 		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				if len(o.ListServers) != 0 {
-					for _, agent := range o.ListServers {
-						resp, err := http.Get(agent.Url)
-						if err != nil {
-							fmt.Println(err)
-						}
-						if resp.StatusCode == http.StatusOK {
-							fmt.Println(agent.Url, "Работает исправно")
-						}
+		for range ticker.C {
+			if len(o.ListServers) == 0 {
+				fmt.Println("Нет подключенных агентов.")
+				continue
+			}
+
+			for i := 0; i < len(o.ListServers); i++ {
+				_, err := http.Get(o.ListServers[i].Url)
+
+				if err != nil {
+					o.ListServers[i].CountFailPings++
+					fmt.Println(err)
+
+					if o.ListServers[i].CountFailPings >= 3 {
+						fmt.Printf("Сервер %s слишком долго не отвечал и был удален.\n", o.ListServers[i].Url)
+						o.ListServers = append(o.ListServers[:i], o.ListServers[i+1:]...)
+						i--
 					}
 				} else {
-					fmt.Println("Нету подключенных агентов")
+					o.ListServers[i].CountFailPings = 0
+					fmt.Printf("Сервер %s работает исправно.\n", o.ListServers[i].Url)
 				}
 			}
 		}
@@ -77,10 +84,10 @@ func (o *Orchestrator) StartPingAgents() {
 func (o *Orchestrator) IsValidExpression(s string) (bool, error) {
 	s = strings.ToLower(s)
 	if len(s) <= 2 { // выражение должно хотя бы быть формата "2+2"
-		return false, errors.New("Невалидное выражение, выражение слишком маленькое")
+		return false, errors.New("невалидное выражение, выражение слишком маленькое")
 	}
 	if strings.ContainsAny(s, "№!@#$%^&()~`qwertyuiop[]\\asdfghjkl;'zxcvbnm,.?йцукенгшщзхъфывапролджэячсмитьбю.|\":_ё=") {
-		return false, errors.New("Невалидное выражение, выражение содержит недопустимые символы")
+		return false, errors.New("невалидное выражение, выражение содержит недопустимые символы")
 	}
 
 	temp := ""
@@ -89,12 +96,12 @@ func (o *Orchestrator) IsValidExpression(s string) (bool, error) {
 		case "*", "/", "+", "-":
 			switch string(ch) {
 			case "*", "/", "+":
-				return false, errors.New(fmt.Sprintf("Невалидное выражение, недопускается \"%s%s\"", temp, string(s[i])))
+				return false, fmt.Errorf("невалидное выражение, недопускается \"%s%s\"", temp, string(s[i]))
 			case "-":
 				if i+1 < len(s) {
 					switch string(s[i+1]) {
 					case "*", "/", "+", "-":
-						return false, errors.New(fmt.Sprintf("Невалидное выражение, недопускается \"%s%s%s\"", temp, string(s[i]), string(s[i+1])))
+						return false, fmt.Errorf("невалидное выражение, недопускается \"%s%s%s\"", temp, string(s[i]), string(s[i+1]))
 					}
 				}
 				temp = string(ch)
@@ -107,7 +114,7 @@ func (o *Orchestrator) IsValidExpression(s string) (bool, error) {
 	}
 	switch string(s[len(s)-1]) {
 	case "*", "/", "+", "-":
-		return false, errors.New(fmt.Sprintf("Невалидное выражение, в конце выражения не может быть \"%s\"", string(s[len(s)-1])))
+		return false, fmt.Errorf("невалидное выражение, в конце выражения не может быть \"%s\"", string(s[len(s)-1]))
 	}
 	return true, nil
 

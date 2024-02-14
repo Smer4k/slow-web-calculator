@@ -14,6 +14,7 @@ type SubExpression struct {
 type Server struct {
 	Url    string
 	Status int
+	CountFailPings int
 }
 
 type Data struct {

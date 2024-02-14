@@ -10,7 +10,7 @@ import (
 )
 
 // создает базу данных если ее нету
-func init() {
+func InitDataBase() {
 	db, err := sql.Open("sqlite3", "../../internal/database/database.db")
 	if err != nil {
 		panic(err)

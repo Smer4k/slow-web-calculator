@@ -30,7 +30,33 @@ func InitDataBase() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("Таблица expressions успешно создана в базе данных или уже существует.")
+	_, err = db.Exec(`
+	CREATE TABLE IF NOT EXISTS timeexecution (
+		id TEXT PRIMARY KEY,
+		timeExec INTEGER
+	);
+`)
+	if err != nil {
+		panic(err)
+	}
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM timeexecution").Scan(&count)
+	if err != nil {
+		panic(err)
+	}
+	if count == 0 {
+		_, err = db.Exec(`
+		INSERT INTO timeexecution (id, timeExec) VALUES ('time_sum', 20);
+		INSERT INTO timeexecution (id, timeExec) VALUES ('time_subtraction', 20);
+		INSERT INTO timeexecution (id, timeExec) VALUES ('time_multi', 20);
+		INSERT INTO timeexecution (id, timeExec) VALUES ('time_division', 20);
+		INSERT INTO timeexecution (id, timeExec) VALUES ('time_out', 20);
+	`)
+		if err != nil {
+			panic(err)
+		}
+	}
+	fmt.Println("Таблицы успешно созданы в базе данных или уже существуют.")
 }
 
 // добавляет выражение в базу данных
@@ -123,4 +149,52 @@ func ContainsExpression(expr string) (bool, error) {
 	} else {
 		return true, nil
 	}
+}
+
+func UpdateSettingsData(data map[string]int) error {
+	db, err := sql.Open("sqlite3", "../../internal/database/database.db")
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	stmt, err := db.Prepare("REPLACE INTO timeexecution (id, timeExec) VALUES (?, ?)")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for key, val := range data {
+		_, err := stmt.Exec(key, val)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func GetSettingsData() (map[string]int, error) {
+	db, err := sql.Open("sqlite3", "../../internal/database/database.db")
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	rows, err := db.Query("SELECT * FROM timeexecution")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	dataSettings := make(map[string]int)
+	for rows.Next() {
+		var name string
+		var time int
+	
+		err := rows.Scan(&name, &time)
+		if err != nil {
+			return nil, err
+		}
+		dataSettings[name] = time
+	}
+	return dataSettings, nil
 }

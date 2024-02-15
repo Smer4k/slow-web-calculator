@@ -14,20 +14,13 @@ type SubExpression struct {
 type Server struct {
 	Url            string
 	Status         int
+	CurrentTask    []int
 	CountFailPings int
-}
-
-type Settings struct {
-	TimeSum           int
-	TimeDeduction     int
-	TimeMulti         int
-	TimeDivision      int
-	TimeDisplayServer int
 }
 
 type Data struct {
 	List     []any
-	Settings Settings
+	Settings map[string]int
 	Status   string
 	Done     bool
 }

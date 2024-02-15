@@ -24,23 +24,23 @@
     
     {{ if .Done }}
       <div class="alert alert-success">
-        <h2>Опреация прошла успешно</h2>
+        <h2>Операция прошла успешно</h2>
       </div>
     {{ end }}
 
     <main role="main" class="inner cover">
       <h1 class="cover-heading">Изменение настроек сервера</h1><br>
       <form action="/settings" method="post">
-        <label for="time_+">Время выполнения сложения (Сек.)</label>
-        <input type="number" name="time_+" id="time_+" value="{{ .Settings.TimeSum }}" placeholder="Введите время для операции +" class="form-control"><br>
-        <label for="time_-">Время выполнения вычетания (Сек.)</label>
-        <input type="number" name="time_-" id="time_-" value="{{ .Settings.TimeDeduction }}" placeholder="Введите время для операции -" class="form-control"><br>
-        <label for="time_*">Время выполнения умножения (Сек.)</label>
-        <input type="number" name="time_*" id="time_*" value="{{ .Settings.TimeMulti }}" placeholder="Введите время для операции *" class="form-control"><br>
-        <label for="time_/">Время выполнения деления (Сек.)</label>
-        <input type="number" name="time_/" id="time_/" value="{{ .Settings.TimeDivision }}" placeholder="Введите время для операции /" class="form-control"> <br>
+        <label for="time_sum">Время выполнения сложения (Сек.)</label>
+        <input type="number" name="time_sum" id="time_sum" value="{{ .Settings.time_sum }}" placeholder="Введите время для операции +" class="form-control"><br>
+        <label for="time_subtraction">Время выполнения вычетания (Сек.)</label>
+        <input type="number" name="time_subtraction" id="time_subtraction" value="{{ .Settings.time_subtraction }}" placeholder="Введите время для операции -" class="form-control"><br>
+        <label for="time_multi">Время выполнения умножения (Сек.)</label>
+        <input type="number" name="time_multi" id="time_multi" value="{{ .Settings.time_multi }}" placeholder="Введите время для операции *" class="form-control"><br>
+        <label for="time_division">Время выполнения деления (Сек.)</label>
+        <input type="number" name="time_division" id="time_division" value="{{ .Settings.time_division }}" placeholder="Введите время для операции /" class="form-control"> <br>
         <label for="time_out">Время отображения неактивного сервера (Сек.)</label>
-        <input type="number" name="time_out" id="time_out" value="{{ .Settings.TimeDisplayServer }}" placeholder="Введите время отображения неактивного сервера" class="form-control"><br>
+        <input type="number" name="time_out" id="time_out" value="{{ .Settings.time_out }}" placeholder="Введите время отображения неактивного сервера" class="form-control"><br>
         <button class="btn btn-warning">Сохранить</button>
       </form>
   

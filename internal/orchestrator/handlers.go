@@ -50,7 +50,7 @@ func (o *Orchestrator) handleGetSettings(w http.ResponseWriter, r *http.Request)
 func (o *Orchestrator) handlePostSettings(w http.ResponseWriter, r *http.Request) {
 	defer http.Redirect(w, r, "/settings", http.StatusSeeOther)
 	targetName := make([]string, 0, 5)
-	targetName = append(targetName, "time_+", "time_-", "time_*", "time_/", "time_out")
+	targetName = append(targetName, "time_sum", "time_subtraction", "time_multi", "time_division", "time_out")
 	for _, valname := range targetName {
 		val := r.PostFormValue(valname)
 		if val != "" {
@@ -63,19 +63,12 @@ func (o *Orchestrator) handlePostSettings(w http.ResponseWriter, r *http.Request
 				fmt.Printf("\"%s\" не может быть меньше 0", valname)
 				continue
 			}
-			switch valname {
-			case "time_+":
-				o.Settings.TimeSum = num
-			case "time_-":
-				o.Settings.TimeDeduction = num
-			case "time_*":
-				o.Settings.TimeMulti = num
-			case "time_/":
-				o.Settings.TimeDivision = num
-			case "time_out":
-				o.Settings.TimeDisplayServer = num
-			}
+			o.Settings[valname] = num
 		}
+	}
+	err := database.UpdateSettingsData(o.Settings)
+	if err != nil {
+		fmt.Println(err)
 	}
 	o.Data.Done = true
 }
@@ -96,5 +89,5 @@ func (o *Orchestrator) handlePostAddServer(w http.ResponseWriter, r *http.Reques
 			return
 		}
 	}
-	o.ListServers = append(o.ListServers, datatypes.Server{Url: val, Status: 1})
+	o.ListServers = append(o.ListServers, datatypes.Server{Url: val, Status: 1, CurrentTask: make([]int, 0, 2)})
 }

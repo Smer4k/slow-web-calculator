@@ -29,7 +29,7 @@ func (o *Orchestrator) handlePostCalculator(w http.ResponseWriter, r *http.Reque
 			fmt.Println(err)
 			return
 		}
-		o.ListExpr = append(o.ListExpr, newExpr)
+		o.ListExpr[expression] = newExpr
 	} else {
 		fmt.Println(err)
 		if err = database.AddExpression(expression, nil, 0, "fail"); err != nil {
@@ -89,5 +89,10 @@ func (o *Orchestrator) handlePostAddServer(w http.ResponseWriter, r *http.Reques
 			return
 		}
 	}
-	o.ListServers = append(o.ListServers, datatypes.Server{Url: val, Status: 1, CurrentTask: make([]int, 0, 2)})
+	o.ListServers = append(o.ListServers, datatypes.Server{Url: val, Status: datatypes.Idle, CurrentTask: make([]int, 0, 2)})
+}
+
+func (o *Orchestrator) handlePing(w http.ResponseWriter, r *http.Request) {
+	r.Header.Add("answer", "pong") // исправить
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }

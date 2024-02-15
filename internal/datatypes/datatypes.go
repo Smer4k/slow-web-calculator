@@ -1,5 +1,14 @@
 package datatypes
 
+type Status int // enum (перечесление) на подобие как в C#
+
+const (
+	Disable Status = iota
+	Reconnect
+	Idle
+	Work
+)
+
 type Expression struct {
 	ListPriority *map[int]int     `json:"listpriority"`
 	ListSubExpr  *[]SubExpression `json:"listsubexpr"`
@@ -13,7 +22,7 @@ type SubExpression struct {
 
 type Server struct {
 	Url            string
-	Status         int
+	Status         Status
 	CurrentTask    []int
 	CountFailPings int
 }
@@ -21,8 +30,16 @@ type Server struct {
 type Data struct {
 	List     []any
 	Settings map[string]int
-	Status   string
+	Status   Status
 	Done     bool
+}
+
+type Task struct {
+	Id              string
+	Expression      SubExpression
+	TimeExec        int
+	IndexExpression int
+	MaxIndex        int
 }
 
 func NewExpression(listPriority *map[int]int, listSubExpr *[]SubExpression) *Expression {

@@ -17,7 +17,7 @@ func InitDataBase() {
 	}
 	defer db.Close()
 
-	// Создаем таблицу
+	// Создаем таблицу expressions если ее нету
 	_, err = db.Exec(`
 		CREATE TABLE IF NOT EXISTS expressions (
 			id TEXT PRIMARY KEY,
@@ -30,6 +30,7 @@ func InitDataBase() {
 	if err != nil {
 		panic(err)
 	}
+	// Создаем таблицу timeexecution если ее нету
 	_, err = db.Exec(`
 	CREATE TABLE IF NOT EXISTS timeexecution (
 		id TEXT PRIMARY KEY,
@@ -39,12 +40,14 @@ func InitDataBase() {
 	if err != nil {
 		panic(err)
 	}
+
 	var count int
 	err = db.QueryRow("SELECT COUNT(*) FROM timeexecution").Scan(&count)
 	if err != nil {
 		panic(err)
 	}
-	if count == 0 {
+
+	if count == 0 { // Добавляются значения по умолчанию если таблица новая
 		_, err = db.Exec(`
 		INSERT INTO timeexecution (id, timeExec) VALUES ('time_sum', 20);
 		INSERT INTO timeexecution (id, timeExec) VALUES ('time_subtraction', 20);
@@ -56,6 +59,7 @@ func InitDataBase() {
 			panic(err)
 		}
 	}
+
 	fmt.Println("Таблицы успешно созданы в базе данных или уже существуют.")
 }
 
@@ -90,7 +94,7 @@ func AddExpression(id string, data *datatypes.Expression, timeForSolve int, stat
 }
 
 // делает запрос в базу данных и возвращает все выражения которые нужно решить
-func GetWorkExpressionsData() ([]datatypes.Expression, error) {
+func GetWorkExpressionsData() (map[string]datatypes.Expression, error) {
 	db, err := sql.Open("sqlite3", "../../internal/database/database.db")
 	if err != nil {
 		return nil, err
@@ -103,16 +107,16 @@ func GetWorkExpressionsData() ([]datatypes.Expression, error) {
 		return nil, err
 	}
 
-	rows, err := db.Query("SELECT JsonData FROM expressions WHERE status = ?", "work")
+	rows, err := db.Query("SELECT id, JsonData FROM expressions WHERE status = ?", "work")
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	newList := make([]datatypes.Expression, 0, count)
+	newList := make(map[string]datatypes.Expression)
 
 	for rows.Next() {
-		var jsonData string
-		err := rows.Scan(&jsonData)
+		var id, jsonData string
+		err := rows.Scan(&id, &jsonData)
 		if err != nil {
 			return nil, err
 		}
@@ -122,7 +126,7 @@ func GetWorkExpressionsData() ([]datatypes.Expression, error) {
 		if err != nil {
 			return nil, err
 		}
-		newList = append(newList, expr)
+		newList[id] = expr
 	}
 
 	if err := rows.Err(); err != nil {
@@ -151,6 +155,8 @@ func ContainsExpression(expr string) (bool, error) {
 	}
 }
 
+
+// Обновляет данные о настройка в базе данных
 func UpdateSettingsData(data map[string]int) error {
 	db, err := sql.Open("sqlite3", "../../internal/database/database.db")
 	if err != nil {
@@ -173,6 +179,7 @@ func UpdateSettingsData(data map[string]int) error {
 	return nil
 }
 
+// Запрашивает и возвращает данные о настройках
 func GetSettingsData() (map[string]int, error) {
 	db, err := sql.Open("sqlite3", "../../internal/database/database.db")
 	if err != nil {

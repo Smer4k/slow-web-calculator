@@ -14,8 +14,8 @@ import (
 type Orchestrator struct {
 	Router      *mux.Router
 	Tmpl        *template.Template
-	ListExpr    []datatypes.Expression
-	ListServers []datatypes.Server
+	ListExpr    map[string]datatypes.Expression // Список всех задач для агентов
+	ListServers []datatypes.Server // Список подключенных агентов
 	Settings    map[string]int
 	Data        datatypes.Data
 }
@@ -24,7 +24,7 @@ func NewOrchestrator() *Orchestrator {
 	o := &Orchestrator{
 		Router:      mux.NewRouter(),
 		Tmpl:        template.Must(template.ParseGlob("../../templates/*.html")),
-		ListExpr:    make([]datatypes.Expression, 0),
+		ListExpr:    make(map[string]datatypes.Expression),
 		ListServers: make([]datatypes.Server, 0, 3),
 	}
 	return o
@@ -44,13 +44,14 @@ func (o *Orchestrator) InitRoutes() {
 	o.Router.HandleFunc("/results", o.handlePostResult).Methods(http.MethodPost)
 
 	o.Router.HandleFunc("/addServer", o.handlePostAddServer).Methods(http.MethodPost)
-
+	o.Router.HandleFunc("/ping", o.handlePing)
+	
 	http.Handle("/", o.Router)
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("../../templates/static/"))))
 	o.StartPingAgents()
 }
 
-// загружает данные с базы данных
+// Загружает данные с базы данных
 func (o *Orchestrator) LoadData() {
 	settings, err := database.GetSettingsData()
 	if err != nil {
@@ -64,7 +65,7 @@ func (o *Orchestrator) LoadData() {
 	o.ListExpr = listExpr
 }
 
-// Запускает бесконечную горутину и каждые 5 секунд проверяет агентов на работоспасобность (мониторинг)
+// Запускает бесконечную горутину и каждые 10 секунд проверяет агентов на работоспасобность (мониторинг)
 func (o *Orchestrator) StartPingAgents() {
 	ticker := time.NewTicker(10 * time.Second)
 	go func() {

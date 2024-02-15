@@ -17,6 +17,7 @@ type Orchestrator struct {
 	Tmpl        *template.Template
 	ListExpr    []datatypes.Expression
 	ListServers []datatypes.Server
+	Settings    datatypes.Settings
 	Data        datatypes.Data
 }
 

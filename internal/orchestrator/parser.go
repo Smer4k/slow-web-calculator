@@ -73,9 +73,23 @@ func (o *Orchestrator) ExpressionParser(s string) datatypes.Expression {
 					temp += ch
 					continue
 				}
+
 				newSubExpr.Right = temp
+				newSubExpr.Status = datatypes.Idle
 				SubExpressions = append(SubExpressions, *newSubExpr)
 				newSubExpr = &datatypes.SubExpression{Left: temp, Operator: ch}
+
+				switch ch {
+				case "*":
+					newSubExpr.NameTimeExec = datatypes.TimeMulti
+				case "/":
+					newSubExpr.NameTimeExec = datatypes.TimeDivision
+				case "+":
+					newSubExpr.NameTimeExec = datatypes.TimeSum
+				case "-":
+					newSubExpr.NameTimeExec = datatypes.TimeSubtraction
+				}
+
 				temp = ""
 				continue
 			} else { // первое выражение
@@ -85,6 +99,18 @@ func (o *Orchestrator) ExpressionParser(s string) datatypes.Expression {
 				}
 				newSubExpr.Left = temp
 				newSubExpr.Operator = ch
+
+				switch ch {
+				case "*":
+					newSubExpr.NameTimeExec = datatypes.TimeMulti
+				case "/":
+					newSubExpr.NameTimeExec = datatypes.TimeDivision
+				case "+":
+					newSubExpr.NameTimeExec = datatypes.TimeSum
+				case "-":
+					newSubExpr.NameTimeExec = datatypes.TimeSubtraction
+				}
+				
 				temp = ""
 				notFirst = true
 				continue
@@ -96,12 +122,12 @@ func (o *Orchestrator) ExpressionParser(s string) datatypes.Expression {
 	SubExpressions = append(SubExpressions, *newSubExpr)
 
 	ans := SortExpressions(SubExpressions)
-	return *datatypes.NewExpression(&ans, &SubExpressions)
+	return *datatypes.NewExpression(ans, SubExpressions)
 }
 
 // сортировка по приоритету
-func SortExpressions(SubExpressions []datatypes.SubExpression) map[int]int {
-	answer := make(map[int]int)
+func SortExpressions(SubExpressions []datatypes.SubExpression) map[int]datatypes.Node {
+	answer := make(map[int]datatypes.Node)
 
 	len := len(SubExpressions)
 
@@ -109,14 +135,14 @@ func SortExpressions(SubExpressions []datatypes.SubExpression) map[int]int {
 
 	for i := 0; i < len; i++ { // сортировка для * и /
 		if SubExpressions[i].Operator == "*" || SubExpressions[i].Operator == "/" {
-			answer[priority] = i
+			answer[priority] = datatypes.Node{Index: i, Status: datatypes.Idle}
 			priority++
 		}
 	}
 
 	for i := 0; i < len; i++ { // сортировка для + и -
 		if SubExpressions[i].Operator == "+" || SubExpressions[i].Operator == "-" {
-			answer[priority] = i
+			answer[priority] = datatypes.Node{Index: i, Status: datatypes.Idle}
 			priority++
 		}
 	}

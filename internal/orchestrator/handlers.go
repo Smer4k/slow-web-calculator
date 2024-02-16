@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -49,10 +50,10 @@ func (o *Orchestrator) handleGetSettings(w http.ResponseWriter, r *http.Request)
 
 func (o *Orchestrator) handlePostSettings(w http.ResponseWriter, r *http.Request) {
 	defer http.Redirect(w, r, "/settings", http.StatusSeeOther)
-	targetName := make([]string, 0, 5)
-	targetName = append(targetName, "time_sum", "time_subtraction", "time_multi", "time_division", "time_out")
+	targetName := make([]datatypes.NameTimeExec, 0, 5)
+	targetName = append(targetName, datatypes.TimeSum, datatypes.TimeSubtraction, datatypes.TimeMulti, datatypes.TimeDivision, datatypes.TimeOut)
 	for _, valname := range targetName {
-		val := r.PostFormValue(valname)
+		val := r.PostFormValue(string(valname))
 		if val != "" {
 			num, err := strconv.Atoi(val)
 			if err != nil {
@@ -89,10 +90,32 @@ func (o *Orchestrator) handlePostAddServer(w http.ResponseWriter, r *http.Reques
 			return
 		}
 	}
-	o.ListServers = append(o.ListServers, datatypes.Server{Url: val, Status: datatypes.Idle, CurrentTask: make([]int, 0, 2)})
+	o.ListServers = append(o.ListServers, datatypes.Server{Url: val, Status: datatypes.Idle})
 }
 
-func (o *Orchestrator) handlePing(w http.ResponseWriter, r *http.Request) {
-	r.Header.Add("answer", "pong") // исправить
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+func (o *Orchestrator) handleGetExpression(w http.ResponseWriter, r *http.Request) {
+	isAgent := false
+	url := r.URL.Query().Get("agent")
+
+	for _, serv := range o.ListServers {
+		if url == serv.Url {
+			isAgent = true
+			break
+		}
+	}
+
+	if isAgent {
+		newTask, ok := o.GetTask(url)
+		if !ok {
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(newTask); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		return
+	} else {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+	}
 }

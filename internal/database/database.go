@@ -157,7 +157,7 @@ func ContainsExpression(expr string) (bool, error) {
 
 
 // Обновляет данные о настройка в базе данных
-func UpdateSettingsData(data map[string]int) error {
+func UpdateSettingsData(data map[datatypes.NameTimeExec]int) error {
 	db, err := sql.Open("sqlite3", "../../internal/database/database.db")
 	if err != nil {
 		return err
@@ -171,7 +171,7 @@ func UpdateSettingsData(data map[string]int) error {
 	defer stmt.Close()
 
 	for key, val := range data {
-		_, err := stmt.Exec(key, val)
+		_, err := stmt.Exec(string(key), val)
 		if err != nil {
 			return err
 		}
@@ -180,7 +180,7 @@ func UpdateSettingsData(data map[string]int) error {
 }
 
 // Запрашивает и возвращает данные о настройках
-func GetSettingsData() (map[string]int, error) {
+func GetSettingsData() (map[datatypes.NameTimeExec]int, error) {
 	db, err := sql.Open("sqlite3", "../../internal/database/database.db")
 	if err != nil {
 		return nil, err
@@ -192,7 +192,8 @@ func GetSettingsData() (map[string]int, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	dataSettings := make(map[string]int)
+	dataSettings := make(map[datatypes.NameTimeExec]int)
+
 	for rows.Next() {
 		var name string
 		var time int
@@ -201,7 +202,7 @@ func GetSettingsData() (map[string]int, error) {
 		if err != nil {
 			return nil, err
 		}
-		dataSettings[name] = time
+		dataSettings[datatypes.NameTimeExec(name)] = time
 	}
 	return dataSettings, nil
 }

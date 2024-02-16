@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/Smer4k/slow-web-calculator/internal/database"
 	"github.com/Smer4k/slow-web-calculator/internal/datatypes"
@@ -26,14 +27,14 @@ func (o *Orchestrator) handlePostCalculator(w http.ResponseWriter, r *http.Reque
 
 	if ok {
 		newExpr := o.ExpressionParser(expression)
-		if err = database.AddExpression(expression, &newExpr, 2, "work"); err != nil {
+		if err = database.AddExpression(expression, &newExpr, "Work", time.Now().Format("2006-01-02 15:04:05")); err != nil {
 			fmt.Println(err)
 			return
 		}
-		o.ListExpr[expression] = newExpr
+		o.ListExpr[expression] = &newExpr
 	} else {
 		fmt.Println(err)
-		if err = database.AddExpression(expression, nil, 0, "fail"); err != nil {
+		if err = database.AddExpression(expression, nil, "Fail", time.Now().Format("2006-01-02 15:04:05")); err != nil {
 			fmt.Println(err)
 			return
 		}
@@ -43,7 +44,11 @@ func (o *Orchestrator) handlePostCalculator(w http.ResponseWriter, r *http.Reque
 
 // Settings.html
 func (o *Orchestrator) handleGetSettings(w http.ResponseWriter, r *http.Request) {
-	o.Data.Settings = o.Settings
+	listSettings := make(map[string]int)
+	for key, val := range o.Settings {
+		listSettings[string(key)] = val
+	}
+	o.Data.Settings = listSettings
 	o.Tmpl.ExecuteTemplate(w, "settings.html", o.Data)
 	o.Data = datatypes.Data{}
 }
@@ -76,11 +81,14 @@ func (o *Orchestrator) handlePostSettings(w http.ResponseWriter, r *http.Request
 
 // Results.html
 func (o *Orchestrator) handleGetResult(w http.ResponseWriter, r *http.Request) {
-	o.Tmpl.ExecuteTemplate(w, "results.html", o.Data)
-}
-
-func (o *Orchestrator) handlePostResult(w http.ResponseWriter, r *http.Request) {
-
+	list, err := database.GetAllExpression()
+	if err != nil {
+		fmt.Println(err)
+		o.Tmpl.ExecuteTemplate(w, "results.html", nil)
+	} else {
+		o.Data.List = list
+		o.Tmpl.ExecuteTemplate(w, "results.html", o.Data)
+	}
 }
 
 func (o *Orchestrator) handlePostAddServer(w http.ResponseWriter, r *http.Request) {
@@ -97,6 +105,7 @@ func (o *Orchestrator) handleGetExpression(w http.ResponseWriter, r *http.Reques
 	isAgent := false
 	url := r.URL.Query().Get("agent")
 
+	
 	for _, serv := range o.ListServers {
 		if url == serv.Url {
 			isAgent = true
@@ -118,4 +127,15 @@ func (o *Orchestrator) handleGetExpression(w http.ResponseWriter, r *http.Reques
 	} else {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	}
+}
+
+func (o *Orchestrator) handlePostAnswer(w http.ResponseWriter, r *http.Request) {
+	var task datatypes.Task
+	ans := r.PostFormValue("answer")
+	err := json.Unmarshal([]byte(ans), &task)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	go o.CheckAndUpdateExpression(task)
 }

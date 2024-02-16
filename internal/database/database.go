@@ -21,10 +21,11 @@ func InitDataBase() {
 	_, err = db.Exec(`
 		CREATE TABLE IF NOT EXISTS expressions (
 			id TEXT PRIMARY KEY,
-			JsonData TEXT,
-			timeForSolve INTEGER,
-			answer INTEGER,
-			status TEXT
+			JsonData BLOB,
+			answer TEXT,
+			status TEXT,
+			timeSend TEXT,
+			timeSolve TEXT
 		)
 	`)
 	if err != nil {
@@ -64,7 +65,7 @@ func InitDataBase() {
 }
 
 // добавляет выражение в базу данных
-func AddExpression(id string, data *datatypes.Expression, timeForSolve int, status string) error {
+func AddExpression(id string, data *datatypes.Expression, status string, timeSend string) error {
 	db, err := sql.Open("sqlite3", "../../internal/database/database.db")
 	if err != nil {
 		return err
@@ -72,8 +73,8 @@ func AddExpression(id string, data *datatypes.Expression, timeForSolve int, stat
 	defer db.Close()
 
 	if data == nil {
-		_, err = db.Exec("INSERT INTO expressions (id, JsonData, timeForSolve, answer, status) VALUES (?, ?, ?, ?, ?)",
-			id, "", timeForSolve, 0, status)
+		_, err = db.Exec("INSERT INTO expressions (id, JsonData, answer, status, timeSend, timeSolve) VALUES (?, ?, ?, ?, ?, ?)",
+			id, "", "", status, timeSend, "")
 		if err != nil {
 			return err
 		}
@@ -84,8 +85,8 @@ func AddExpression(id string, data *datatypes.Expression, timeForSolve int, stat
 	if err != nil {
 		return err
 	}
-	_, err = db.Exec("INSERT INTO expressions (id, JsonData, timeForSolve, answer, status) VALUES (?, ?, ?, ?, ?)",
-		id, jsonData, timeForSolve, 0, status)
+	_, err = db.Exec("INSERT INTO expressions (id, JsonData, answer, status, timeSend, timeSolve) VALUES (?, ?, ?, ?, ?, ?)",
+		id, jsonData, "", status, timeSend, "")
 
 	if err != nil {
 		return err
@@ -94,7 +95,7 @@ func AddExpression(id string, data *datatypes.Expression, timeForSolve int, stat
 }
 
 // делает запрос в базу данных и возвращает все выражения которые нужно решить
-func GetWorkExpressionsData() (map[string]datatypes.Expression, error) {
+func GetWorkExpressionsData() (map[string]*datatypes.Expression, error) {
 	db, err := sql.Open("sqlite3", "../../internal/database/database.db")
 	if err != nil {
 		return nil, err
@@ -102,17 +103,17 @@ func GetWorkExpressionsData() (map[string]datatypes.Expression, error) {
 	defer db.Close()
 
 	var count int
-	err = db.QueryRow("SELECT COUNT(*) FROM expressions WHERE status = ?", "work").Scan(&count)
+	err = db.QueryRow("SELECT COUNT(*) FROM expressions WHERE status = ?", "Work").Scan(&count)
 	if err != nil {
 		return nil, err
 	}
 
-	rows, err := db.Query("SELECT id, JsonData FROM expressions WHERE status = ?", "work")
+	rows, err := db.Query("SELECT id, JsonData FROM expressions WHERE status = ?", "Work")
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	newList := make(map[string]datatypes.Expression)
+	newList := make(map[string]*datatypes.Expression)
 
 	for rows.Next() {
 		var id, jsonData string
@@ -126,7 +127,7 @@ func GetWorkExpressionsData() (map[string]datatypes.Expression, error) {
 		if err != nil {
 			return nil, err
 		}
-		newList[id] = expr
+		newList[id] = &expr
 	}
 
 	if err := rows.Err(); err != nil {
@@ -154,7 +155,6 @@ func ContainsExpression(expr string) (bool, error) {
 		return true, nil
 	}
 }
-
 
 // Обновляет данные о настройка в базе данных
 func UpdateSettingsData(data map[datatypes.NameTimeExec]int) error {
@@ -197,7 +197,7 @@ func GetSettingsData() (map[datatypes.NameTimeExec]int, error) {
 	for rows.Next() {
 		var name string
 		var time int
-	
+
 		err := rows.Scan(&name, &time)
 		if err != nil {
 			return nil, err
@@ -205,4 +205,59 @@ func GetSettingsData() (map[datatypes.NameTimeExec]int, error) {
 		dataSettings[datatypes.NameTimeExec(name)] = time
 	}
 	return dataSettings, nil
+}
+
+// обновляет выражение
+func UpdateExpression(id string, data *datatypes.Expression, status string, answer string, timeSolve string) error {
+	db, err := sql.Open("sqlite3", "../../internal/database/database.db")
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec("UPDATE expressions SET JsonData = ?, status = ?, answer = ?, timeSolve = ? WHERE id = ?",
+		jsonData, status, answer, timeSolve, id)
+
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func GetAllExpression() (map[string]*datatypes.Result, error) {
+	db, err := sql.Open("sqlite3", "../../internal/database/database.db")
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+	rows, err := db.Query("SELECT id, status, answer, timeSend, timeSolve FROM expressions")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	newlist := make(map[string]*datatypes.Result)
+	for rows.Next() {
+		var id, answer, timeSend, timeSolve, status string
+		if err := rows.Scan(&id, &status, &answer, &timeSend, &timeSolve); err != nil {
+			return nil, err
+		}
+		if answer == "" && status != "Fail" {
+			answer = "?"
+		}
+		switch status {
+		case "Done":
+			status = "success"
+		case "Work":
+			status = "info"
+		case "Fail":
+			status = "danger"
+		}
+		result := &datatypes.Result{Answer: answer, Status: status, TimeSend: timeSend, TimeSolve: timeSolve}
+		newlist[id] = result
+	}
+	return newlist, nil
 }

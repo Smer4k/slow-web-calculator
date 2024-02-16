@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,17 +16,17 @@ import (
 type Orchestrator struct {
 	Router      *mux.Router
 	Tmpl        *template.Template
-	ListExpr    map[string]datatypes.Expression // Список всех задач для агентов
-	ListServers []datatypes.Server              // Список подключенных агентов
-	Settings    map[datatypes.NameTimeExec]int
-	Data        datatypes.Data
+	ListExpr    map[string]*datatypes.Expression // Список всех задач для агентов
+	ListServers []datatypes.Server               // Список подключенных агентов
+	Settings    map[datatypes.NameTimeExec]int   // настройки сервера
+	Data        datatypes.Data                   // отправляемые данные при запросе пользователя
 }
 
 func NewOrchestrator() *Orchestrator {
 	o := &Orchestrator{
 		Router:      mux.NewRouter(),
 		Tmpl:        template.Must(template.ParseGlob("../../templates/*.html")),
-		ListExpr:    make(map[string]datatypes.Expression),
+		ListExpr:    make(map[string]*datatypes.Expression),
 		ListServers: make([]datatypes.Server, 0, 3),
 	}
 	return o
@@ -42,14 +43,35 @@ func (o *Orchestrator) InitRoutes() {
 	o.Router.HandleFunc("/settings", o.handlePostSettings).Methods(http.MethodPost)
 
 	o.Router.HandleFunc("/results", o.handleGetResult).Methods(http.MethodGet)
-	o.Router.HandleFunc("/results", o.handlePostResult).Methods(http.MethodPost)
 
 	o.Router.HandleFunc("/addServer", o.handlePostAddServer).Methods(http.MethodPost)
 	o.Router.HandleFunc("/getExpression", o.handleGetExpression)
+	o.Router.HandleFunc("/postAnswer", o.handlePostAnswer).Methods(http.MethodPost)
 
 	http.Handle("/", o.Router)
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("../../templates/static/"))))
 	o.StartPingAgents()
+}
+
+// проверяет полностью ли решено выражение, а так же обновляет данные в базе данных
+func (o *Orchestrator) CheckAndUpdateExpression(task datatypes.Task) {
+	o.ListExpr[task.Id].ListSubExpr[task.IndexExpression].Answer = strconv.Itoa(task.Answer)
+	o.ListExpr[task.Id].ListSubExpr[task.IndexExpression].Status = datatypes.Done
+	for key, val := range o.ListExpr[task.Id].ListPriority {
+		if val.Index == task.IndexExpression {
+			val.Status = datatypes.Done
+			val.Agent = ""
+			o.ListExpr[task.Id].ListPriority[key] = val
+			break
+		}
+	}
+
+	lastIndex := o.ListExpr[task.Id].ListPriority[len(o.ListExpr[task.Id].ListPriority)-1].Index
+	if o.ListExpr[task.Id].ListSubExpr[lastIndex].Answer != "" {
+		database.UpdateExpression(task.Id, o.ListExpr[task.Id], "Done", o.ListExpr[task.Id].ListSubExpr[lastIndex].Answer, time.Now().Format("2006-01-02 15:04:05"))
+	} else {
+		database.UpdateExpression(task.Id, o.ListExpr[task.Id], "Work", "", "")
+	}
 }
 
 // выдает доступную задачу для агента
@@ -64,6 +86,7 @@ func (o *Orchestrator) GetTask(agentURL string) (datatypes.Task, bool) {
 				if expr.Index == 0 { // если это первое выражение
 					copyExpr := data.ListSubExpr[expr.Index]
 					data.ListSubExpr[expr.Index].Status = datatypes.Work
+					copyExpr.Status = datatypes.Work
 					newTask = *datatypes.NewTask(id, copyExpr, o.Settings[copyExpr.NameTimeExec], expr.Index)
 					expr.Status = datatypes.Work
 					expr.Agent = agentURL
@@ -71,12 +94,14 @@ func (o *Orchestrator) GetTask(agentURL string) (datatypes.Task, bool) {
 					return newTask, true
 				}
 
+				// если левое или правое выражение обрабатывается, то переходим к другому
 				if data.ListSubExpr[expr.Index-1].Status == datatypes.Work {
 					continue
 				}
 				if expr.Index+1 < len(data.ListSubExpr) && data.ListSubExpr[expr.Index+1].Status == datatypes.Work {
 					continue
 				}
+
 				copyExpr := data.ListSubExpr[expr.Index]
 
 				if strings.ContainsAny(data.ListSubExpr[expr.Index-1].Operator, "*/") { // выражение ливее
@@ -89,10 +114,10 @@ func (o *Orchestrator) GetTask(agentURL string) (datatypes.Task, bool) {
 				}
 
 				if expr.Index+1 < len(data.ListSubExpr) { // выражение правее
-					if strings.ContainsAny(data.ListSubExpr[expr.Index+1].Operator, "*/") {
-						if data.ListSubExpr[expr.Index+1].Answer == "" {
+					if strings.ContainsAny(data.ListSubExpr[expr.Index+1].Operator, "*/") && !strings.ContainsAny(copyExpr.Operator, "*/") {
+						if data.ListSubExpr[expr.Index+1].Answer == ""  {
 							continue
-						}
+						} 
 						copyExpr.Right = data.ListSubExpr[expr.Index+1].Answer
 					} else if data.ListSubExpr[expr.Index+1].Answer != "" {
 						copyExpr.Right = data.ListSubExpr[expr.Index+1].Answer
@@ -100,6 +125,7 @@ func (o *Orchestrator) GetTask(agentURL string) (datatypes.Task, bool) {
 				}
 
 				data.ListSubExpr[expr.Index].Status = datatypes.Work
+				copyExpr.Status = datatypes.Work
 				newTask = *datatypes.NewTask(id, copyExpr, o.Settings[copyExpr.NameTimeExec], expr.Index)
 				expr.Status = datatypes.Work
 				expr.Agent = agentURL

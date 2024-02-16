@@ -40,10 +40,17 @@ type Server struct {
 }
 
 type Data struct {
-	List     []any
-	Settings map[NameTimeExec]int
+	List     any
+	Settings map[string]int
 	Status   Status
 	Done     bool
+}
+
+type Result struct {
+	Answer string
+	Status string
+	TimeSend string
+	TimeSolve string
 }
 
 type Task struct {
@@ -51,6 +58,7 @@ type Task struct {
 	Expression      SubExpression `json:"expression"`
 	TimeExec        int           `json:"timeexec"`
 	IndexExpression int           `json:"indexexpression"`
+	Answer          int           `json:"answer"`
 }
 
 // у меня уже закончились идее как назвать

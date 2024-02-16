@@ -25,11 +25,11 @@
     <main role="main" class="inner cover">
       <h1 class="cover-heading">Список выражений</h1>
       <div class="list-group">
-        {{range .List }}
-          <div class="list-group-item list-group-item-{{ .Status }}">
-            <div class="box bg-{{ .Status }} text-black p-3">
-              <img class="image-icon" src="static/{{ .Icon }}.png" alt=""> 
-              <p class="lead text-left">{{ .Answer }}</p>
+        {{range $key, $value := .List }}
+          <div class="list-group-item list-group-item-{{ $value.Status }}">
+            <div class="box bg-{{ $value.Status }} text-black p-3">
+              <img class="image-icon" src="static/{{ $value.Status }}.png" alt=""> 
+              <p class="lead text-left">{{$key}}={{ $value.Answer }}</p>
             </div>
           </div>
         {{end}}

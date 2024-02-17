@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strconv"
 	"time"
+	"math/rand"
 
 	"github.com/Smer4k/slow-web-calculator/internal/datatypes"
 	"github.com/gorilla/mux"
@@ -25,26 +26,27 @@ func NewAgent(orchestratorPort, port string) *Agent {
 		Router:         mux.NewRouter(),
 		AddrMainServer: "http://localhost" + orchestratorPort + "/",
 		AddrAgent:      "http://localhost" + port + "/",
-		Status: datatypes.Idle,
+		Status:         datatypes.Idle,
 	}
 }
 
 func (a *Agent) InitAgent() {
-	a.Router.HandleFunc("/solvingExpression", a.solvingExpression).Methods(http.MethodPost)
-	a.Router.HandleFunc("/solvingExpression", a.redirectToMainServer).Methods(http.MethodGet)
 	a.Router.HandleFunc("/", a.redirectToMainServer).Methods(http.MethodGet)
 	http.Handle("/", a.Router)
-	a.AddAgentToMainServer()
+	a.AddAgentToMainServer(true)
 	a.PingMainServer()
 }
 
 // добавляет адрес агента в список оркестра
-func (a *Agent) AddAgentToMainServer() {
+func (a *Agent) AddAgentToMainServer(check bool) {
 	vals := url.Values{}
 	vals.Add("server", a.AddrAgent)
 	_, err := http.PostForm(a.AddrMainServer+"addServer", vals)
 	if err != nil {
 		panic(err)
+	}
+	if !check {
+		a.Status = datatypes.Idle
 	}
 }
 
@@ -74,7 +76,7 @@ func (a *Agent) GetNewTask() {
 		}
 		a.CurrentTask = task
 		a.Status = datatypes.Work
-		fmt.Println("Получил ", task, " приступаю к работе")
+		fmt.Printf("Получил %s%s%s приступаю к работе\n", task.Expression.Left, task.Expression.Operator, task.Expression.Right)
 		go a.SolveExpression()
 	}
 }
@@ -88,10 +90,15 @@ func (a *Agent) PostAnswer() {
 		return
 	}
 	vals.Add("answer", string(jsonData))
-	_, err = http.PostForm(a.AddrMainServer + "postAnswer", vals)
-	if err != nil {
-		fmt.Println(err)
-		return
+	ticker := time.NewTicker(2 * time.Second)
+	for range ticker.C {
+		_, err = http.PostForm(a.AddrMainServer+"postAnswer", vals)
+		if err != nil {
+			fmt.Println("Главный сервер не отвечает, пробую повторно отправить решение")
+		} else {
+			ticker.Stop()
+			break
+		}
 	}
 	a.CurrentTask = datatypes.Task{}
 	a.Status = datatypes.Idle
@@ -101,9 +108,9 @@ func (a *Agent) PostAnswer() {
 // выполняет решение выражения
 func (a *Agent) SolveExpression() {
 	time.Sleep(time.Duration(a.CurrentTask.TimeExec) * time.Second)
-	var leftNum, rightNum, total int
-	leftNum, _ = strconv.Atoi(a.CurrentTask.Expression.Left)
-	rightNum, _ = strconv.Atoi(a.CurrentTask.Expression.Right)
+	var leftNum, rightNum, total float64
+	leftNum, _ = strconv.ParseFloat(a.CurrentTask.Expression.Left, 64)
+	rightNum, _ = strconv.ParseFloat(a.CurrentTask.Expression.Right, 64)
 	switch a.CurrentTask.Expression.Operator {
 	case "+":
 		total = leftNum + rightNum
@@ -121,27 +128,30 @@ func (a *Agent) SolveExpression() {
 
 // проверяет работоспособность оркестра и делает запрос на получение задачи если агент стоит без дела
 func (a *Agent) PingMainServer() {
-	ticker := time.NewTicker(10 * time.Second)
+	
+	ticker := time.NewTicker(time.Duration((float32(5) + rand.Float32())) * time.Second)
 	failConnect := false
 	go func() {
 		defer ticker.Stop()
 		for range ticker.C {
 			_, err := http.Get(a.AddrMainServer)
 			if err != nil {
-				a.Status = datatypes.Reconnect
-				fmt.Println(err)
-				failConnect = true
+				if !failConnect {
+					a.Status = datatypes.Reconnect
+					fmt.Println("Главный сервер не отвечает, ошибка:")
+					fmt.Println(err)
+					failConnect = true
+				}
 				continue
 			} else {
 				if failConnect {
-					a.AddAgentToMainServer()
+					a.AddAgentToMainServer(false)
 					failConnect = false
 				}
 				if a.Status == datatypes.Idle {
-					fmt.Println("a")
+					a.AddAgentToMainServer(true)
 					go a.GetNewTask()
 				}
-				fmt.Println(a.Status)
 			}
 		}
 	}()

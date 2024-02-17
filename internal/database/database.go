@@ -214,11 +214,16 @@ func UpdateExpression(id string, data *datatypes.Expression, status string, answ
 		return err
 	}
 	defer db.Close()
-
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		return err
+	var jsonData []byte
+	if data != nil {
+		jsonData, err = json.Marshal(data)
+		if err != nil {
+			return err
+		}
+	} else {
+		jsonData = []byte("")
 	}
+
 	_, err = db.Exec("UPDATE expressions SET JsonData = ?, status = ?, answer = ?, timeSolve = ? WHERE id = ?",
 		jsonData, status, answer, timeSolve, id)
 

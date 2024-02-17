@@ -53,91 +53,19 @@ func (o *Orchestrator) InitRoutes() {
 	o.StartPingAgents()
 }
 
-// проверяет полностью ли решено выражение, а так же обновляет данные в базе данных
-func (o *Orchestrator) CheckAndUpdateExpression(task datatypes.Task) {
-	o.ListExpr[task.Id].ListSubExpr[task.IndexExpression].Answer = strconv.Itoa(task.Answer)
-	o.ListExpr[task.Id].ListSubExpr[task.IndexExpression].Status = datatypes.Done
-	for key, val := range o.ListExpr[task.Id].ListPriority {
-		if val.Index == task.IndexExpression {
-			val.Status = datatypes.Done
-			val.Agent = ""
-			o.ListExpr[task.Id].ListPriority[key] = val
+func IsMultiOrDivision(operator string) bool {
+	return strings.ContainsAny(operator, "*/")
+}
+
+func (o *Orchestrator) SetStatusForNeighbors(id string,index int) {
+	for i := index; i >= 0; i-- {
+		if !IsMultiOrDivision(o.ListExpr[id].ListSubExpr[i].Operator) {
 			break
 		}
-	}
-
-	lastIndex := o.ListExpr[task.Id].ListPriority[len(o.ListExpr[task.Id].ListPriority)-1].Index
-	if o.ListExpr[task.Id].ListSubExpr[lastIndex].Answer != "" {
-		database.UpdateExpression(task.Id, o.ListExpr[task.Id], "Done", o.ListExpr[task.Id].ListSubExpr[lastIndex].Answer, time.Now().Format("2006-01-02 15:04:05"))
-	} else {
-		database.UpdateExpression(task.Id, o.ListExpr[task.Id], "Work", "", "")
+		o.ListExpr[id].ListSubExpr[i].Status = datatypes.Done
 	}
 }
 
-// выдает доступную задачу для агента
-func (o *Orchestrator) GetTask(agentURL string) (datatypes.Task, bool) {
-	for id, data := range o.ListExpr {
-		for i := 0; i < len(data.ListPriority); i++ {
-			expr := data.ListPriority[i]
-
-			if expr.Status == datatypes.Idle {
-				var newTask datatypes.Task
-
-				if expr.Index == 0 { // если это первое выражение
-					copyExpr := data.ListSubExpr[expr.Index]
-					data.ListSubExpr[expr.Index].Status = datatypes.Work
-					copyExpr.Status = datatypes.Work
-					newTask = *datatypes.NewTask(id, copyExpr, o.Settings[copyExpr.NameTimeExec], expr.Index)
-					expr.Status = datatypes.Work
-					expr.Agent = agentURL
-					data.ListPriority[i] = expr
-					return newTask, true
-				}
-
-				// если левое или правое выражение обрабатывается, то переходим к другому
-				if data.ListSubExpr[expr.Index-1].Status == datatypes.Work {
-					continue
-				}
-				if expr.Index+1 < len(data.ListSubExpr) && data.ListSubExpr[expr.Index+1].Status == datatypes.Work {
-					continue
-				}
-
-				copyExpr := data.ListSubExpr[expr.Index]
-
-				if strings.ContainsAny(data.ListSubExpr[expr.Index-1].Operator, "*/") { // выражение ливее
-					if data.ListSubExpr[expr.Index-1].Answer == "" {
-						continue
-					}
-					copyExpr.Left = data.ListSubExpr[expr.Index-1].Answer
-				} else if data.ListSubExpr[expr.Index-1].Answer != "" {
-					copyExpr.Left = data.ListSubExpr[expr.Index-1].Answer
-				}
-
-				if expr.Index+1 < len(data.ListSubExpr) { // выражение правее
-					if strings.ContainsAny(data.ListSubExpr[expr.Index+1].Operator, "*/") && !strings.ContainsAny(copyExpr.Operator, "*/") {
-						if data.ListSubExpr[expr.Index+1].Answer == ""  {
-							continue
-						} 
-						copyExpr.Right = data.ListSubExpr[expr.Index+1].Answer
-					} else if data.ListSubExpr[expr.Index+1].Answer != "" {
-						copyExpr.Right = data.ListSubExpr[expr.Index+1].Answer
-					}
-				}
-
-				data.ListSubExpr[expr.Index].Status = datatypes.Work
-				copyExpr.Status = datatypes.Work
-				newTask = *datatypes.NewTask(id, copyExpr, o.Settings[copyExpr.NameTimeExec], expr.Index)
-				expr.Status = datatypes.Work
-				expr.Agent = agentURL
-				data.ListPriority[i] = expr
-				return newTask, true
-			}
-		}
-	}
-	return datatypes.Task{}, false
-}
-
-// Загружает данные с базы данных
 func (o *Orchestrator) LoadData() {
 	settings, err := database.GetSettingsData()
 	if err != nil {
@@ -151,7 +79,6 @@ func (o *Orchestrator) LoadData() {
 	o.ListExpr = listExpr
 }
 
-// Запускает бесконечную горутину и каждые 10 секунд проверяет агентов на работоспасобность (мониторинг)
 func (o *Orchestrator) StartPingAgents() {
 	ticker := time.NewTicker(10 * time.Second)
 	go func() {
@@ -171,6 +98,7 @@ func (o *Orchestrator) StartPingAgents() {
 
 					if o.ListServers[i].CountFailPings >= 3 {
 						fmt.Printf("Сервер %s слишком долго не отвечал и был удален.\n", o.ListServers[i].Url)
+						o.CancelTask(o.ListServers[i].Url, "", -1)
 						o.ListServers = append(o.ListServers[:i], o.ListServers[i+1:]...)
 						i--
 					}
@@ -182,3 +110,64 @@ func (o *Orchestrator) StartPingAgents() {
 		}
 	}()
 }
+
+func (o *Orchestrator) CheckAndUpdateExpression(task datatypes.Task) {
+	for {
+		if len(o.ListExpr) != 0 {
+			break
+		}
+	}
+	o.ListExpr[task.Id].ListSubExpr[task.IndexExpression].Answer = strconv.FormatFloat(task.Answer, 'f', -1, 64)
+	for key, val := range o.ListExpr[task.Id].ListPriority {
+		if val.Index == task.IndexExpression {
+			if task.IndexExpression == len(o.ListExpr[task.Id].ListSubExpr)-1 {
+				val.Status = datatypes.Done
+				o.SetStatusForNeighbors(task.Id, task.IndexExpression-1)
+
+			} else if IsMultiOrDivision(o.ListExpr[task.Id].ListSubExpr[task.IndexExpression].Operator) && IsMultiOrDivision(o.ListExpr[task.Id].ListSubExpr[task.IndexExpression+1].Operator) {
+				val.Status = datatypes.Work
+				o.ListExpr[task.Id].ListSubExpr[task.IndexExpression].Status = datatypes.Work
+
+			} else {
+				val.Status = datatypes.Done
+				o.ListExpr[task.Id].ListSubExpr[task.IndexExpression].Status = datatypes.Done
+			}
+
+			val.Agent = ""
+			o.ListExpr[task.Id].ListPriority[key] = val
+			break
+		}
+	}
+
+	if IsMultiOrDivision(o.ListExpr[task.Id].ListSubExpr[task.IndexExpression].Operator) {
+		for i := task.IndexExpression - 1; i >= 0; i-- {
+			val := o.ListExpr[task.Id].ListSubExpr[i]
+			if IsMultiOrDivision(val.Operator) {
+				if val.Answer != "" {
+					o.ListExpr[task.Id].ListSubExpr[i].Answer = strconv.FormatFloat(task.Answer, 'f', -1, 64)
+				} else {
+					break
+				}
+			} else {
+				break
+			}
+		}
+	} else {
+		for _, val := range task.OtherUses {
+			o.ListExpr[task.Id].ListSubExpr[val].Answer = strconv.FormatFloat(task.Answer, 'f', -1, 64)
+		}
+	}
+
+	lastIndex := o.ListExpr[task.Id].ListPriority[len(o.ListExpr[task.Id].ListPriority)-1].Index
+	if o.ListExpr[task.Id].ListSubExpr[lastIndex].Answer != "" {
+		err := database.UpdateExpression(task.Id, nil, "Done", o.ListExpr[task.Id].ListSubExpr[lastIndex].Answer, time.Now().Format("2006-01-02 15:04:05"))
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		delete(o.ListExpr, task.Id)
+	} else {
+		database.UpdateExpression(task.Id, o.ListExpr[task.Id], "Work", "", "")
+	}
+}
+

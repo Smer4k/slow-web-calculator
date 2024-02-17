@@ -47,9 +47,9 @@ type Data struct {
 }
 
 type Result struct {
-	Answer string
-	Status string
-	TimeSend string
+	Answer    string
+	Status    string
+	TimeSend  string
 	TimeSolve string
 }
 
@@ -58,10 +58,10 @@ type Task struct {
 	Expression      SubExpression `json:"expression"`
 	TimeExec        int           `json:"timeexec"`
 	IndexExpression int           `json:"indexexpression"`
-	Answer          int           `json:"answer"`
+	Answer          float64       `json:"answer"`
+	OtherUses       []int         `json:"otheruses"`
 }
 
-// у меня уже закончились идее как назвать
 type Node struct {
 	Index  int    `json:"index"`
 	Agent  string `json:"agent"`
@@ -75,11 +75,12 @@ func NewExpression(listPriority map[int]Node, listSubExpr []SubExpression) *Expr
 	}
 }
 
-func NewTask(expressionOrigin string, expression SubExpression, timeExec, index int) *Task {
+func NewTask(expressionOrigin string, expression SubExpression, timeExec, index int, otherUses []int) *Task {
 	return &Task{
 		Id:              expressionOrigin,
 		Expression:      expression,
 		TimeExec:        timeExec,
 		IndexExpression: index,
+		OtherUses:       otherUses,
 	}
 }

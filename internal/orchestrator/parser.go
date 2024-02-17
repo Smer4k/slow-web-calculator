@@ -9,11 +9,10 @@ import (
 )
 
 func (o *Orchestrator) IsValidExpression(s string) (bool, error) {
-	s = strings.ToLower(s)
 	if len(s) <= 2 { // выражение должно хотя бы быть формата "2+2"
 		return false, errors.New("невалидное выражение, выражение слишком маленькое")
 	}
-	if strings.ContainsAny(s, "№!@#$%^&()~`qwertyuiop[]\\asdfghjkl;'zxcvbnm,.?йцукенгшщзхъфывапролджэячсмитьбю.|\":_ё=") {
+	if strings.ContainsAny(s, "№!@#$%^&()~`qwertyuiop[]\\asdfghjkl;'zxcvbnm,?йцукенгшщзхъфывапролджэячсмитьбю|\":_ё=") {
 		return false, errors.New("невалидное выражение, выражение содержит недопустимые символы")
 	}
 
@@ -47,7 +46,6 @@ func (o *Orchestrator) IsValidExpression(s string) (bool, error) {
 
 }
 
-// разбивает строку выражения на datatypes.SubExpression и возвращает тип datatypes.Expression
 func (o *Orchestrator) ExpressionParser(s string) datatypes.Expression {
 	s = strings.ReplaceAll(s, " ", "")
 
@@ -119,13 +117,13 @@ func (o *Orchestrator) ExpressionParser(s string) datatypes.Expression {
 		temp += ch
 	}
 	newSubExpr.Right = temp
+	newSubExpr.Status = datatypes.Idle
 	SubExpressions = append(SubExpressions, *newSubExpr)
 
 	ans := SortExpressions(SubExpressions)
 	return *datatypes.NewExpression(ans, SubExpressions)
 }
 
-// сортировка по приоритету
 func SortExpressions(SubExpressions []datatypes.SubExpression) map[int]datatypes.Node {
 	answer := make(map[int]datatypes.Node)
 
@@ -134,14 +132,14 @@ func SortExpressions(SubExpressions []datatypes.SubExpression) map[int]datatypes
 	priority := 0
 
 	for i := 0; i < len; i++ { // сортировка для * и /
-		if SubExpressions[i].Operator == "*" || SubExpressions[i].Operator == "/" {
+		if IsMultiOrDivision(SubExpressions[i].Operator) {
 			answer[priority] = datatypes.Node{Index: i, Status: datatypes.Idle}
 			priority++
 		}
 	}
 
 	for i := 0; i < len; i++ { // сортировка для + и -
-		if SubExpressions[i].Operator == "+" || SubExpressions[i].Operator == "-" {
+		if !IsMultiOrDivision(SubExpressions[i].Operator) {
 			answer[priority] = datatypes.Node{Index: i, Status: datatypes.Idle}
 			priority++
 		}

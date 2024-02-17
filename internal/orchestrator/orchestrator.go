@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"fmt"
 	"html/template"
+	"math/rand"
 	"net/http"
 	"strconv"
 	"strings"
@@ -43,6 +44,7 @@ func (o *Orchestrator) InitRoutes() {
 	o.Router.HandleFunc("/settings", o.handlePostSettings).Methods(http.MethodPost)
 
 	o.Router.HandleFunc("/results", o.handleGetResult).Methods(http.MethodGet)
+	o.Router.HandleFunc("/resources", o.handleGetResources)
 
 	o.Router.HandleFunc("/addServer", o.handlePostAddServer).Methods(http.MethodPost)
 	o.Router.HandleFunc("/getExpression", o.handleGetExpression)
@@ -50,14 +52,13 @@ func (o *Orchestrator) InitRoutes() {
 
 	http.Handle("/", o.Router)
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("../../templates/static/"))))
-	o.StartPingAgents()
 }
 
 func IsMultiOrDivision(operator string) bool {
 	return strings.ContainsAny(operator, "*/")
 }
 
-func (o *Orchestrator) SetStatusForNeighbors(id string,index int) {
+func (o *Orchestrator) SetStatusNeighborsMultiDivision(id string, index int) {
 	for i := index; i >= 0; i-- {
 		if !IsMultiOrDivision(o.ListExpr[id].ListSubExpr[i].Operator) {
 			break
@@ -79,36 +80,41 @@ func (o *Orchestrator) LoadData() {
 	o.ListExpr = listExpr
 }
 
-func (o *Orchestrator) StartPingAgents() {
-	ticker := time.NewTicker(10 * time.Second)
-	go func() {
-		defer ticker.Stop()
-		for range ticker.C {
-			if len(o.ListServers) == 0 {
-				fmt.Println("Нет подключенных агентов.")
+func (o *Orchestrator) StartPingAgent(agentURL string) {
+	seconds := 10 * time.Second
+	randSecond := time.Duration(float64(time.Second) * rand.Float64())
+	ticker := time.NewTicker(seconds + randSecond)
+	defer ticker.Stop()
+	for range ticker.C {
+		for i := 0; i < len(o.ListServers); i++ {
+			if o.ListServers[i].Url != agentURL {
 				continue
 			}
-
-			for i := 0; i < len(o.ListServers); i++ {
-				_, err := http.Get(o.ListServers[i].Url)
-
-				if err != nil {
-					o.ListServers[i].CountFailPings++
-					fmt.Println(err)
-
-					if o.ListServers[i].CountFailPings >= 3 {
-						fmt.Printf("Сервер %s слишком долго не отвечал и был удален.\n", o.ListServers[i].Url)
-						o.CancelTask(o.ListServers[i].Url, "", -1)
-						o.ListServers = append(o.ListServers[:i], o.ListServers[i+1:]...)
-						i--
-					}
-				} else if o.ListServers[i].CountFailPings != 0 {
-					o.ListServers[i].CountFailPings = 0
-					fmt.Printf("Сервер %s работает исправно.\n", o.ListServers[i].Url)
+			if o.ListServers[i].Status == datatypes.Disable {
+				continue
+			}
+			_, err := http.Get(agentURL)
+			o.ListServers[i].LastPing = time.Now()
+			if err != nil {
+				o.ListServers[i].CountFailPings++
+				if o.ListServers[i].Status != datatypes.Reconnect {
+					o.ListServers[i].Status = datatypes.Reconnect
+					fmt.Printf("Сервер %s не отвечает, ошибка:\n%s\n", o.ListServers[i].Url, err)
 				}
+
+				if o.ListServers[i].CountFailPings >= 3 {
+					o.ListServers[i].Status = datatypes.Disable
+					fmt.Printf("Сервер %s слишком долго не отвечал, все задачи с сервера сняты.\n", agentURL)
+					o.CancelTask(agentURL, "", -1)
+					o.ListServers[i].CancelDelChan = make(chan struct{})
+					go o.DeleteServer(agentURL, o.ListServers[i].CancelDelChan)
+				}
+			} else if o.ListServers[i].CountFailPings != 0 {
+				o.ListServers[i].CountFailPings = 0
+				fmt.Printf("Сервер %s работает исправно.\n", agentURL)
 			}
 		}
-	}()
+	}
 }
 
 func (o *Orchestrator) CheckAndUpdateExpression(task datatypes.Task) {
@@ -122,7 +128,7 @@ func (o *Orchestrator) CheckAndUpdateExpression(task datatypes.Task) {
 		if val.Index == task.IndexExpression {
 			if task.IndexExpression == len(o.ListExpr[task.Id].ListSubExpr)-1 {
 				val.Status = datatypes.Done
-				o.SetStatusForNeighbors(task.Id, task.IndexExpression-1)
+				o.SetStatusNeighborsMultiDivision(task.Id, task.IndexExpression-1)
 
 			} else if IsMultiOrDivision(o.ListExpr[task.Id].ListSubExpr[task.IndexExpression].Operator) && IsMultiOrDivision(o.ListExpr[task.Id].ListSubExpr[task.IndexExpression+1].Operator) {
 				val.Status = datatypes.Work
@@ -171,3 +177,22 @@ func (o *Orchestrator) CheckAndUpdateExpression(task datatypes.Task) {
 	}
 }
 
+func (o *Orchestrator) DeleteServer(agentURL string, cancel chan struct{}) {
+	seconds := time.Duration(o.Settings[datatypes.TimeOut]) * time.Second
+	randSecond := time.Duration(float64(time.Second) * rand.Float64())
+	time := time.After(seconds + randSecond)
+	for {
+		select {
+		case <-time:
+			for i := 0; i < len(o.ListServers); i++ {
+				if o.ListServers[i].Url != agentURL {
+					continue
+				}
+				o.ListServers = append(o.ListServers[:i], o.ListServers[i+1:]...)
+			}
+			return
+		case <-cancel:
+			return
+		}
+	}
+}

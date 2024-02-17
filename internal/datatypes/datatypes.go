@@ -1,5 +1,7 @@
 package datatypes
 
+import "time"
+
 type Status int // enum (перечесление) на подобие как в C#
 type NameTimeExec string
 
@@ -37,16 +39,22 @@ type Server struct {
 	Url            string
 	Status         Status
 	CountFailPings int
+	LastPing       time.Time
+	CancelDelChan  chan struct{}
 }
 
 type Data struct {
-	List     any
 	Settings map[string]int
 	Status   Status
 	Done     bool
 }
 
-type Result struct {
+type DataServer struct {
+	Status   string
+	TimePing string
+}
+
+type DataExpression struct {
 	Answer    string
 	Status    string
 	TimeSend  string

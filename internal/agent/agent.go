@@ -138,8 +138,7 @@ func (a *Agent) PingMainServer() {
 			if err != nil {
 				if !failConnect {
 					a.Status = datatypes.Reconnect
-					fmt.Println("Главный сервер не отвечает, ошибка:")
-					fmt.Println(err)
+					fmt.Printf("Главный сервер не отвечает, ошибка:\n%s\n", err)
 					failConnect = true
 				}
 				continue

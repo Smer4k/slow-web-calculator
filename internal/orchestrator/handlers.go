@@ -86,19 +86,49 @@ func (o *Orchestrator) handleGetResult(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(err)
 		o.Tmpl.ExecuteTemplate(w, "results.html", nil)
 	} else {
-		o.Data.List = list
-		o.Tmpl.ExecuteTemplate(w, "results.html", o.Data)
+		o.Tmpl.ExecuteTemplate(w, "results.html", list)
 	}
 }
 
+func (o *Orchestrator) handleGetResources(w http.ResponseWriter, r *http.Request) {
+	if len(o.ListServers) == 0 {
+		o.Tmpl.ExecuteTemplate(w, "resources.html", nil)
+		return
+	}
+	list := make(map[string]datatypes.DataServer)
+	for _, serv := range o.ListServers {
+		data := &datatypes.DataServer{}
+		switch serv.Status {
+		case datatypes.Idle:
+			data.Status = "success"
+		case datatypes.Reconnect:
+			data.Status = "info"
+		case datatypes.Disable:
+			data.Status = "danger"
+		}
+		data.TimePing = serv.LastPing.Format("2006-01-02 15:04:05")
+		list[serv.Url] = *data
+	}
+	o.Tmpl.ExecuteTemplate(w, "resources.html", list)
+}
+
+// Ниже обработчики для агентов
+
 func (o *Orchestrator) handlePostAddServer(w http.ResponseWriter, r *http.Request) {
 	val := r.PostFormValue("server")
-	for _, serv := range o.ListServers {
+	for i, serv := range o.ListServers {
 		if serv.Url == val {
+			if serv.Status == datatypes.Disable || serv.Status == datatypes.Reconnect {
+				o.ListServers[i].CountFailPings = 0
+				o.ListServers[i].Status = datatypes.Idle
+				o.ListServers[i].LastPing = time.Now()
+				close(o.ListServers[i].CancelDelChan)
+			}
 			return
 		}
 	}
-	o.ListServers = append(o.ListServers, datatypes.Server{Url: val, Status: datatypes.Idle})
+	o.ListServers = append(o.ListServers, datatypes.Server{Url: val, Status: datatypes.Idle, CountFailPings: 0, LastPing: time.Now()})
+	go o.StartPingAgent(o.ListServers[len(o.ListServers)-1].Url)
 }
 
 func (o *Orchestrator) handleGetExpression(w http.ResponseWriter, r *http.Request) {

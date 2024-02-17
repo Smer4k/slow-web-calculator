@@ -233,7 +233,7 @@ func UpdateExpression(id string, data *datatypes.Expression, status string, answ
 	return nil
 }
 
-func GetAllExpression() (map[string]*datatypes.Result, error) {
+func GetAllExpression() (map[string]*datatypes.DataExpression, error) {
 	db, err := sql.Open("sqlite3", "../../internal/database/database.db")
 	if err != nil {
 		return nil, err
@@ -244,7 +244,7 @@ func GetAllExpression() (map[string]*datatypes.Result, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	newlist := make(map[string]*datatypes.Result)
+	newlist := make(map[string]*datatypes.DataExpression)
 	for rows.Next() {
 		var id, answer, timeSend, timeSolve, status string
 		if err := rows.Scan(&id, &status, &answer, &timeSend, &timeSolve); err != nil {
@@ -261,7 +261,7 @@ func GetAllExpression() (map[string]*datatypes.Result, error) {
 		case "Fail":
 			status = "danger"
 		}
-		result := &datatypes.Result{Answer: answer, Status: status, TimeSend: timeSend, TimeSolve: timeSolve}
+		result := &datatypes.DataExpression{Answer: answer, Status: status, TimeSend: timeSend, TimeSolve: timeSolve}
 		newlist[id] = result
 	}
 	return newlist, nil

@@ -90,16 +90,21 @@ func (a *Agent) PostAnswer() {
 		return
 	}
 	vals.Add("answer", string(jsonData))
-	ticker := time.NewTicker(2 * time.Second)
-	for range ticker.C {
-		_, err = http.PostForm(a.AddrMainServer+"postAnswer", vals)
-		if err != nil {
-			fmt.Println("Главный сервер не отвечает, пробую повторно отправить решение")
-		} else {
-			ticker.Stop()
-			break
+	_, err = http.PostForm(a.AddrMainServer+"postAnswer", vals)
+	if err != nil {
+		fmt.Println("Главный сервер не отвечает, пробую повторно отправить решение")
+		ticker := time.NewTicker(2 * time.Second)
+		for range ticker.C {
+			_, err = http.PostForm(a.AddrMainServer+"postAnswer", vals)
+			if err != nil {
+				fmt.Println("Главный сервер не отвечает, пробую повторно отправить решение")
+			} else {
+				ticker.Stop()
+				break
+			}
 		}
 	}
+
 	a.CurrentTask = datatypes.Task{}
 	a.Status = datatypes.Idle
 	fmt.Println("Отправил решение, ожидаю новой задачи")

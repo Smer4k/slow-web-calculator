@@ -155,7 +155,9 @@ func (o *Orchestrator) handlePostAddServer(w http.ResponseWriter, r *http.Reques
 				o.ListServers[i].CountFailPings = 0
 				o.ListServers[i].Status = datatypes.Idle
 				o.ListServers[i].LastPing = time.Now()
-				close(o.ListServers[i].CancelDelChan)
+				if serv.Status == datatypes.Disable {
+					close(o.ListServers[i].CancelDelChan)
+				}
 			}
 			return
 		}

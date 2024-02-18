@@ -56,20 +56,22 @@ func (o *Orchestrator) GetTask(agentURL string) (datatypes.Task, bool) {
 						if data.ListSubExpr[expr.Index+1].Status == datatypes.Work {
 							continue
 						}
-						if expr.Index+1 < len(data.ListSubExpr) {
-							if IsMultiOrDivision(data.ListSubExpr[expr.Index+1].Operator) && !IsMultiOrDivision(copyExpr.Operator) {
-								if data.ListSubExpr[expr.Index+1].Answer == "" {
-									continue
-								}
-								copyExpr.Right = data.ListSubExpr[expr.Index+1].Answer
-								otherUses = append(otherUses, expr.Index+1)
-							} else if data.ListSubExpr[expr.Index+1].Answer != "" {
-								copyExpr.Right = data.ListSubExpr[expr.Index+1].Answer
-								otherUses = append(otherUses, expr.Index+1)
+						if IsMultiOrDivision(data.ListSubExpr[expr.Index+1].Operator) && !IsMultiOrDivision(copyExpr.Operator) {
+							if data.ListSubExpr[expr.Index+1].Answer == "" {
+								continue
 							}
+							copyExpr.Right = data.ListSubExpr[expr.Index+1].Answer
+							otherUses = append(otherUses, expr.Index+1)
+						} else if data.ListSubExpr[expr.Index+1].Answer != "" {
+							copyExpr.Right = data.ListSubExpr[expr.Index+1].Answer
+							otherUses = append(otherUses, expr.Index+1)
 						}
 					}
-
+					if len(otherUses) != 0 && !IsMultiOrDivision(data.ListSubExpr[expr.Index].Operator) {
+						for _, val := range otherUses {
+							o.ListExpr[id].ListSubExpr[val].Status = datatypes.Work
+						}
+					}
 					data.ListSubExpr[expr.Index].Status = datatypes.Work
 					copyExpr.Status = datatypes.Work
 					newTask = *datatypes.NewTask(id, copyExpr, o.Settings[copyExpr.NameTimeExec], expr.Index, otherUses)
@@ -116,6 +118,12 @@ func (o *Orchestrator) GetTask(agentURL string) (datatypes.Task, bool) {
 					} else if data.ListSubExpr[expr.Index+1].Answer != "" {
 						copyExpr.Right = data.ListSubExpr[expr.Index+1].Answer
 						otherUses = append(otherUses, expr.Index+1)
+					}
+				}
+
+				if len(otherUses) != 0 && !IsMultiOrDivision(data.ListSubExpr[expr.Index].Operator) {
+					for _, val := range otherUses {
+						o.ListExpr[id].ListSubExpr[val].Status = datatypes.Work
 					}
 				}
 

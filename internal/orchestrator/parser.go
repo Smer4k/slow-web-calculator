@@ -47,8 +47,6 @@ func (o *Orchestrator) IsValidExpression(s string) (bool, error) {
 }
 
 func (o *Orchestrator) ExpressionParser(s string) datatypes.Expression {
-	s = strings.ReplaceAll(s, " ", "")
-
 	chars := strings.Split(s, "")
 	countOperators := 0
 	for _, ch := range chars { // смотрим сколько нужно места для массива (есть погрешность)

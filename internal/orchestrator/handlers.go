@@ -35,6 +35,7 @@ func (o *Orchestrator) handleGetCalculator(w http.ResponseWriter, r *http.Reques
 func (o *Orchestrator) handlePostCalculator(w http.ResponseWriter, r *http.Request) {
 	defer http.Redirect(w, r, "/calculator", http.StatusSeeOther)
 	expression := r.FormValue("expression")
+	expression = strings.ReplaceAll(expression, " ", "")
 	ok, err := o.IsValidExpression(expression)
 
 	if ok {

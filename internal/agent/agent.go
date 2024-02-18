@@ -126,7 +126,7 @@ func (a *Agent) SolveExpression() {
 	case "/":
 		total = leftNum / rightNum
 	}
-	a.CurrentTask.Answer = strconv.FormatFloat(total, 'g', -1, 64)
+	a.CurrentTask.Answer = strconv.FormatFloat(total, 'f', -1, 64)
 	fmt.Println("Задача решена, ответ: ", total)
 	go a.PostAnswer()
 }

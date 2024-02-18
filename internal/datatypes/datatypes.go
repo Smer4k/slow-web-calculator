@@ -70,7 +70,7 @@ type Task struct {
 	Expression      SubExpression `json:"expression"`
 	TimeExec        int           `json:"timeexec"`
 	IndexExpression int           `json:"indexexpression"`
-	Answer          float64       `json:"answer"`
+	Answer          string       `json:"answer"`
 	OtherUses       []int         `json:"otheruses"`
 }
 

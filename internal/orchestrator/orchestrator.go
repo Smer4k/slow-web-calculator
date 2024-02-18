@@ -118,19 +118,22 @@ func (o *Orchestrator) StartPingAgent(agentURL string) {
 }
 
 func (o *Orchestrator) CheckAndUpdateExpression(task datatypes.Task) {
-	for {
+	for { // ждем пока сервер не подгузит выражения из БД
 		if len(o.ListExpr) != 0 {
 			break
 		}
 	}
+
 	o.ListExpr[task.Id].ListSubExpr[task.IndexExpression].Answer = strconv.FormatFloat(task.Answer, 'f', -1, 64)
+
 	for key, val := range o.ListExpr[task.Id].ListPriority {
 		if val.Index == task.IndexExpression {
-			if task.IndexExpression == len(o.ListExpr[task.Id].ListSubExpr)-1 {
+			if task.IndexExpression == len(o.ListExpr[task.Id].ListSubExpr)-1 { // если это последние выражение
 				val.Status = datatypes.Done
 				o.SetStatusNeighborsMultiDivision(task.Id, task.IndexExpression-1)
 
 			} else if IsMultiOrDivision(o.ListExpr[task.Id].ListSubExpr[task.IndexExpression].Operator) && IsMultiOrDivision(o.ListExpr[task.Id].ListSubExpr[task.IndexExpression+1].Operator) {
+				// если это и левое выражение является * или /
 				val.Status = datatypes.Work
 				o.ListExpr[task.Id].ListSubExpr[task.IndexExpression].Status = datatypes.Work
 
@@ -148,7 +151,7 @@ func (o *Orchestrator) CheckAndUpdateExpression(task datatypes.Task) {
 	if IsMultiOrDivision(o.ListExpr[task.Id].ListSubExpr[task.IndexExpression].Operator) {
 		for i := task.IndexExpression - 1; i >= 0; i-- {
 			val := o.ListExpr[task.Id].ListSubExpr[i]
-			if IsMultiOrDivision(val.Operator) {
+			if IsMultiOrDivision(val.Operator) { // заменяет ответ у соседних * и / на новый ответ
 				if val.Answer != "" {
 					o.ListExpr[task.Id].ListSubExpr[i].Answer = strconv.FormatFloat(task.Answer, 'f', -1, 64)
 				} else {
@@ -159,13 +162,13 @@ func (o *Orchestrator) CheckAndUpdateExpression(task datatypes.Task) {
 			}
 		}
 	} else {
-		for _, val := range task.OtherUses {
+		for _, val := range task.OtherUses { // заменяет ответ у левого и правого выражения
 			o.ListExpr[task.Id].ListSubExpr[val].Answer = strconv.FormatFloat(task.Answer, 'f', -1, 64)
 		}
 	}
 
 	lastIndex := o.ListExpr[task.Id].ListPriority[len(o.ListExpr[task.Id].ListPriority)-1].Index
-	if o.ListExpr[task.Id].ListSubExpr[lastIndex].Answer != "" {
+	if o.ListExpr[task.Id].ListSubExpr[lastIndex].Answer != "" { // если последние выражение было решено (по списку приоритета)
 		err := database.UpdateExpression(task.Id, nil, "Done", o.ListExpr[task.Id].ListSubExpr[lastIndex].Answer, time.Now().Format("2006-01-02 15:04:05"))
 		if err != nil {
 			fmt.Println(err)
@@ -177,6 +180,7 @@ func (o *Orchestrator) CheckAndUpdateExpression(task datatypes.Task) {
 	}
 }
 
+// Удаляет сервер из списка через время
 func (o *Orchestrator) DeleteServer(agentURL string, cancel chan struct{}) {
 	seconds := time.Duration(o.Settings[datatypes.TimeOut]) * time.Second
 	randSecond := time.Duration(float64(time.Second) * rand.Float64())

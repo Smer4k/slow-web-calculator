@@ -21,7 +21,7 @@ func (o *Orchestrator) IsValidExpression(s string) (bool, error) {
 		switch temp {
 		case "*", "/", "+", "-":
 			switch string(ch) {
-			case "*", "/", "+":
+			case "*", "/", "+": // если два идет два подрят ** или подобие (искл. '-')
 				return false, fmt.Errorf("невалидное выражение, недопускается \"%s%s\"", temp, string(s[i]))
 			case "-":
 				if i+1 < len(s) {
@@ -38,7 +38,7 @@ func (o *Orchestrator) IsValidExpression(s string) (bool, error) {
 			temp = string(ch)
 		}
 	}
-	switch string(s[len(s)-1]) {
+	switch string(s[len(s)-1]) { // если в конце окажется не цифра
 	case "*", "/", "+", "-":
 		return false, fmt.Errorf("невалидное выражение, в конце выражения не может быть \"%s\"", string(s[len(s)-1]))
 	}
@@ -51,7 +51,7 @@ func (o *Orchestrator) ExpressionParser(s string) datatypes.Expression {
 
 	chars := strings.Split(s, "")
 	countOperators := 0
-	for _, ch := range chars {
+	for _, ch := range chars { // смотрим сколько нужно места для массива (есть погрешность)
 		switch ch {
 		case "*", "/", "+", "-":
 			countOperators++
@@ -66,7 +66,7 @@ func (o *Orchestrator) ExpressionParser(s string) datatypes.Expression {
 	for i, ch := range chars {
 		if ch == "+" || ch == "-" || ch == "*" || ch == "/" {
 			if notFirst {
-				switch chars[i-1] {
+				switch chars[i-1] { // если этот ch является '-' и до него ch является оператором
 				case "+", "-", "/", "*":
 					temp += ch
 					continue
@@ -91,7 +91,7 @@ func (o *Orchestrator) ExpressionParser(s string) datatypes.Expression {
 				temp = ""
 				continue
 			} else { // первое выражение
-				if i == 0 {
+				if i == 0 { // если первый ch это оператор
 					temp += ch
 					continue
 				}
@@ -108,7 +108,7 @@ func (o *Orchestrator) ExpressionParser(s string) datatypes.Expression {
 				case "-":
 					newSubExpr.NameTimeExec = datatypes.TimeSubtraction
 				}
-				
+
 				temp = ""
 				notFirst = true
 				continue

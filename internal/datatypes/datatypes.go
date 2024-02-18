@@ -11,6 +11,8 @@ const (
 	Idle
 	Work
 	Done
+	BadRequest
+	ServerError
 )
 
 const (
@@ -46,7 +48,8 @@ type Server struct {
 type Data struct {
 	Settings map[string]int
 	Status   Status
-	Done     bool
+	Done     string
+	Text     string
 }
 
 type DataServer struct {
@@ -55,6 +58,7 @@ type DataServer struct {
 }
 
 type DataExpression struct {
+	Expr      string
 	Answer    string
 	Status    string
 	TimeSend  string

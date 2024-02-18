@@ -22,14 +22,31 @@
       </div>
     </header>
     
-    {{ if .Done }}
+    {{ if eq .Done "sucsess" }}
       <div class="alert alert-success">
-        <h2>Операция прошла успешно</h2>
+        <div class="box text-black p-1">
+          <img class="image-icon" src="static/success.png" alt="">
+          <h2>Выражение добавлено</h2>
+        </div>
+      </div>
+    {{ else if eq .Done "contain"}}
+      <div class="alert alert-success">
+        <div class="box text-black p-1">
+          <img class="image-icon" src="static/success.png" alt="">
+          <h2>{{ .Text }}</h2>
+        </div>
+      </div>
+    {{ else if eq .Done "danger" }}
+      <div class="alert alert-danger">
+        <div class="box text-black p-1">
+          <img class="image-icon" src="static/danger.png" alt="">
+          <h2>{{ .Text }}</h2>
+        </div>
       </div>
     {{ end }}
 
     <main role="main" class="inner cover">
-      <h1 class="cover-heading">Добавление операции</h1><br>
+      <h1 class="cover-heading">Добавление выражения</h1><br>
       <form action="/calculator" method="post">
         <input type="text" name="expression" id="expression" placeholder="Введите выражение" class="form-control"><br>
         <button class="btn btn-warning">Добавить</button>

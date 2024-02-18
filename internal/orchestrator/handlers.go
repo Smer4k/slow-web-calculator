@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Smer4k/slow-web-calculator/internal/database"
@@ -17,7 +19,17 @@ func (o *Orchestrator) handleGetIndex(w http.ResponseWriter, r *http.Request) {
 
 // Calculator.html
 func (o *Orchestrator) handleGetCalculator(w http.ResponseWriter, r *http.Request) {
+	if o.Data.Status == datatypes.BadRequest {
+		w.WriteHeader(http.StatusBadRequest)
+	} else if o.Data.Status == datatypes.ServerError {
+		if strings.Contains(o.Data.Text, "UNIQUE") {
+			o.Data.Text = "Выражение уже было ранее отправильно"
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	}
 	o.Tmpl.ExecuteTemplate(w, "calculator.html", o.Data)
+	o.Data = datatypes.Data{}
 }
 
 func (o *Orchestrator) handlePostCalculator(w http.ResponseWriter, r *http.Request) {
@@ -29,13 +41,23 @@ func (o *Orchestrator) handlePostCalculator(w http.ResponseWriter, r *http.Reque
 		newExpr := o.ExpressionParser(expression)
 		if err = database.AddExpression(expression, &newExpr, "Work", time.Now().Format("2006-01-02 15:04:05")); err != nil {
 			fmt.Println(err)
+			o.Data.Text = err.Error()
+			o.Data.Done = "danger"
+			o.Data.Status = datatypes.ServerError
 			return
 		}
+		o.Data.Done = "sucsess"
 		o.ListExpr[expression] = &newExpr
 	} else {
 		fmt.Println(err)
+		o.Data.Text = err.Error()
+		o.Data.Done = "danger"
+		o.Data.Status = datatypes.BadRequest
 		if err = database.AddExpression(expression, nil, "Fail", time.Now().Format("2006-01-02 15:04:05")); err != nil {
 			fmt.Println(err)
+			o.Data.Text = err.Error()
+			o.Data.Done = "danger"
+			o.Data.Status = datatypes.ServerError
 			return
 		}
 	}
@@ -76,12 +98,23 @@ func (o *Orchestrator) handlePostSettings(w http.ResponseWriter, r *http.Request
 	if err != nil {
 		fmt.Println(err)
 	}
-	o.Data.Done = true
+	o.Data.Done = "sucsess"
 }
 
 // Results.html
 func (o *Orchestrator) handleGetResult(w http.ResponseWriter, r *http.Request) {
 	list, err := database.GetAllExpression()
+	slices.SortFunc(list, func(a *datatypes.DataExpression, b *datatypes.DataExpression) int {
+		timeA, _ := time.Parse("2006-01-02 15:04:05", a.TimeSend)
+		timeB, _ := time.Parse("2006-01-02 15:04:05", b.TimeSend)
+		if timeA.Before(timeB) {
+			return -1
+		} else if timeA.Equal(timeB) {
+			return 0
+		} else {
+			return 1
+		}
+	})
 	if err != nil {
 		fmt.Println(err)
 		o.Tmpl.ExecuteTemplate(w, "results.html", nil)
@@ -135,7 +168,6 @@ func (o *Orchestrator) handleGetExpression(w http.ResponseWriter, r *http.Reques
 	isAgent := false
 	url := r.URL.Query().Get("agent")
 
-	
 	for _, serv := range o.ListServers {
 		if url == serv.Url {
 			isAgent = true

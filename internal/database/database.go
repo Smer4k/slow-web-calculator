@@ -94,7 +94,7 @@ func AddExpression(id string, data *datatypes.Expression, status string, timeSen
 	return nil
 }
 
-// делает запрос в базу данных и возвращает все выражения которые нужно решить
+// возвращает все выражения которые нужно решить
 func GetWorkExpressionsData() (map[string]*datatypes.Expression, error) {
 	db, err := sql.Open("sqlite3", "../../internal/database/database.db")
 	if err != nil {
@@ -134,26 +134,6 @@ func GetWorkExpressionsData() (map[string]*datatypes.Expression, error) {
 		return nil, err
 	}
 	return newList, nil
-}
-
-// проверяет есть ли данное выражение в базе данных
-func ContainsExpression(expr string) (bool, error) {
-	db, err := sql.Open("sqlite3", "../../internal/database/database.db")
-	if err != nil {
-		return false, err
-	}
-	defer db.Close()
-
-	var idFromDB string
-	err = db.QueryRow("SELECT id FROM expressions WHERE id = ?", expr).Scan(&idFromDB)
-
-	if err == sql.ErrNoRows {
-		return false, nil
-	} else if err != nil {
-		return false, err
-	} else {
-		return true, nil
-	}
 }
 
 // Обновляет данные о настройка в базе данных
@@ -233,18 +213,24 @@ func UpdateExpression(id string, data *datatypes.Expression, status string, answ
 	return nil
 }
 
-func GetAllExpression() (map[string]*datatypes.DataExpression, error) {
+func GetAllExpression() ([]*datatypes.DataExpression, error) {
 	db, err := sql.Open("sqlite3", "../../internal/database/database.db")
 	if err != nil {
 		return nil, err
 	}
 	defer db.Close()
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM expressions").Scan(&count)
+	if err != nil {
+		return nil, err
+	}
 	rows, err := db.Query("SELECT id, status, answer, timeSend, timeSolve FROM expressions")
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	newlist := make(map[string]*datatypes.DataExpression)
+	newlist := make([]*datatypes.DataExpression, 0, count)
+
 	for rows.Next() {
 		var id, answer, timeSend, timeSolve, status string
 		if err := rows.Scan(&id, &status, &answer, &timeSend, &timeSolve); err != nil {
@@ -261,8 +247,8 @@ func GetAllExpression() (map[string]*datatypes.DataExpression, error) {
 		case "Fail":
 			status = "danger"
 		}
-		result := &datatypes.DataExpression{Answer: answer, Status: status, TimeSend: timeSend, TimeSolve: timeSolve}
-		newlist[id] = result
+		result := &datatypes.DataExpression{Expr: id, Answer: answer, Status: status, TimeSend: timeSend, TimeSolve: timeSolve}
+		newlist = append(newlist, result)
 	}
 	return newlist, nil
 }

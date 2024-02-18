@@ -29,7 +29,7 @@ body {
 }
 
 .cover-container-results {
-  max-width: 50em;
+  max-width: 65em;
 }
 
 .cover-container {
@@ -98,6 +98,7 @@ body {
 
 .Example-result {
   text-align: left;
+  width: 500px;
   margin: 0;
 }
 

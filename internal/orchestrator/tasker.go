@@ -1,23 +1,8 @@
 package orchestrator
 
 import (
-	"net/http"
-
 	"github.com/Smer4k/slow-web-calculator/internal/datatypes"
 )
-
-func (o *Orchestrator) CheckTasks() {
-	for id, data := range o.ListExpr {
-		for i, val := range data.ListPriority {
-			if val.Agent != "" {
-				_, err := http.Get(val.Agent)
-				if err != nil {
-					o.CancelTask(val.Agent, id, i)
-				}
-			}
-		}
-	}
-}
 
 func (o *Orchestrator) CancelTask(agentURL string, idExpr string, indexExpr int) {
 	if idExpr == "" && indexExpr < 0 {

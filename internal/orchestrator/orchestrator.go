@@ -78,9 +78,6 @@ func (o *Orchestrator) LoadData() {
 		panic(err)
 	}
 	o.ListExpr = listExpr
-	for key, val := range o.ListExpr {
-		fmt.Println(key, " ", *val)
-	}
 }
 
 func (o *Orchestrator) StartPingAgent(agentURL string) {
@@ -109,7 +106,7 @@ func (o *Orchestrator) StartPingAgent(agentURL string) {
 				if o.ListServers[i].CountFailPings >= 3 {
 					o.ListServers[i].Status = datatypes.Disable
 					fmt.Printf("Сервер %s слишком долго не отвечал и был поставлен на удаление\n", agentURL)
-					
+
 					o.ListServers[i].CancelDelChan = make(chan struct{})
 					go o.DeleteServer(agentURL, o.ListServers[i].CancelDelChan)
 				}
@@ -128,8 +125,8 @@ func (o *Orchestrator) CheckAndUpdateExpression(task datatypes.Task) {
 		}
 	}
 
-	o.ListExpr[task.Id].ListSubExpr[task.IndexExpression].Answer = strconv.FormatFloat(task.Answer, 'f', -1, 64)
-	
+	o.ListExpr[task.Id].ListSubExpr[task.IndexExpression].Answer = strconv.FormatFloat(task.Answer, 'g', -1, 64)
+
 	for key, val := range o.ListExpr[task.Id].ListPriority {
 		if val.Index == task.IndexExpression {
 			if task.IndexExpression == len(o.ListExpr[task.Id].ListSubExpr)-1 { // если это последние выражение
@@ -163,7 +160,7 @@ func (o *Orchestrator) CheckAndUpdateExpression(task datatypes.Task) {
 			val := o.ListExpr[task.Id].ListSubExpr[i]
 			if IsMultiOrDivision(val.Operator) { // заменяет ответ у соседних * и / на новый ответ
 				if val.Answer != "" {
-					o.ListExpr[task.Id].ListSubExpr[i].Answer = strconv.FormatFloat(task.Answer, 'f', -1, 64)
+					o.ListExpr[task.Id].ListSubExpr[i].Answer = strconv.FormatFloat(task.Answer, 'g', -1, 64)
 				} else {
 					break
 				}
@@ -173,7 +170,7 @@ func (o *Orchestrator) CheckAndUpdateExpression(task datatypes.Task) {
 		}
 	} else {
 		for _, val := range task.OtherUses { // заменяет ответ у левого и правого выражения
-			o.ListExpr[task.Id].ListSubExpr[val].Answer = strconv.FormatFloat(task.Answer, 'f', -1, 64)
+			o.ListExpr[task.Id].ListSubExpr[val].Answer = strconv.FormatFloat(task.Answer, 'g', -1, 64)
 		}
 	}
 

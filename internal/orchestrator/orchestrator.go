@@ -131,12 +131,18 @@ func (o *Orchestrator) CheckAndUpdateExpression(task datatypes.Task) {
 			if task.IndexExpression == len(o.ListExpr[task.Id].ListSubExpr)-1 { // если это последние выражение
 				val.Status = datatypes.Done
 				o.ListExpr[task.Id].ListSubExpr[task.IndexExpression].Status = datatypes.Done
-				o.SetStatusNeighborsMultiDivision(task.Id, task.IndexExpression-1)
+				o.SetStatusNeighborsMultiDivision(task.Id, task.IndexExpression)
 
 			} else if IsMultiOrDivision(o.ListExpr[task.Id].ListSubExpr[task.IndexExpression].Operator) && IsMultiOrDivision(o.ListExpr[task.Id].ListSubExpr[task.IndexExpression+1].Operator) {
 				// если это и левое выражение является * или /
 				val.Status = datatypes.Work
 				o.ListExpr[task.Id].ListSubExpr[task.IndexExpression].Status = datatypes.Work
+
+			}else if IsMultiOrDivision(o.ListExpr[task.Id].ListSubExpr[task.IndexExpression].Operator) && !IsMultiOrDivision(o.ListExpr[task.Id].ListSubExpr[task.IndexExpression+1].Operator) {
+				val.Status = datatypes.Done
+				o.ListExpr[task.Id].ListSubExpr[task.IndexExpression].Status = datatypes.Done
+				o.SetStatusNeighborsMultiDivision(task.Id, task.IndexExpression)
+
 			} else if len(task.OtherUses) != 0 && !IsMultiOrDivision(o.ListExpr[task.Id].ListSubExpr[task.IndexExpression].Operator) {
 				val.Status = datatypes.Done
 				o.ListExpr[task.Id].ListSubExpr[task.IndexExpression].Status = datatypes.Done
@@ -154,22 +160,20 @@ func (o *Orchestrator) CheckAndUpdateExpression(task datatypes.Task) {
 		}
 	}
 
-	if IsMultiOrDivision(o.ListExpr[task.Id].ListSubExpr[task.IndexExpression].Operator) {
-		for i := task.IndexExpression - 1; i >= 0; i-- {
-			val := o.ListExpr[task.Id].ListSubExpr[i]
-			if IsMultiOrDivision(val.Operator) { // заменяет ответ у соседних * и / на новый ответ
-				if val.Answer != "" {
-					o.ListExpr[task.Id].ListSubExpr[i].Answer = task.Answer
-				} else {
-					break
-				}
-			} else {
-				break
-			}
+	for i := task.IndexExpression - 1; i >= 0; i-- {
+		val := o.ListExpr[task.Id].ListSubExpr[i]
+		if val.Answer != "" {
+			o.ListExpr[task.Id].ListSubExpr[i].Answer = task.Answer
+		} else {
+			break
 		}
-	} else {
-		for _, val := range task.OtherUses { // заменяет ответ у левого и правого выражения
-			o.ListExpr[task.Id].ListSubExpr[val].Answer = task.Answer
+	}
+	for i := task.IndexExpression + 1; i < len(o.ListExpr[task.Id].ListSubExpr); i++ {
+		val := o.ListExpr[task.Id].ListSubExpr[i]
+		if val.Answer != "" {
+			o.ListExpr[task.Id].ListSubExpr[i].Answer = task.Answer
+		} else {
+			break
 		}
 	}
 

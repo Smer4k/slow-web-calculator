@@ -28,9 +28,13 @@
         {{ range $key, $value := . }}
           <div class="list-group-item list-group-item-{{ $value.Status }}">
             <div class="box bg-{{ $value.Status }} text-black p-3">
-              <img class="image-icon" src="static/{{ $value.Status }}.png" alt=""> 
-              <p class="lead text-left">{{ $key }}</p>
-              <p class="lead text-left">Last ping: {{ $value.TimePing }}</p>
+              <div class="resources-content">
+                <img class="image-icon" src="static/{{ $value.Status }}.png" alt=""> 
+                <ul class="server-info">
+                  <li><p class="lead text-left">{{ $key }}</p></li>
+                  <li><p class="lead text-left">Last ping: {{ $value.TimePing }}</p></li>
+                </ul>
+              </div>
             </div>
           </div>
         {{end}}

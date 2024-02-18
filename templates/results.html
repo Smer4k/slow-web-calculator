@@ -9,7 +9,7 @@
 </head>
 <body class="text-center">
     
-  <div class="cover-container d-flex w-100 h-100 p-3 mx-auto flex-column">
+  <div class="cover-container-results d-flex w-100 h-100 p-3 mx-auto flex-column">
     <header class="masthead mb-auto">
       <div class="inner">
         <h3 class="masthead-brand">Slow Web Calculator</h3>
@@ -27,19 +27,25 @@
       <div class="list-group">
         {{range . }}
           <div class="list-group-item list-group-item-{{ .Status }}">
-            <div class="box bg-{{ .Status }} text-black p-3">
-              <img class="image-icon" src="static/{{ .Status }}.png" alt=""> 
-              <div>
-                <p class="lead text-left">{{.Expr}}={{ .Answer }}</p>
+            <div class="box-results bg-{{ .Status }} text-black p-3">
+              <div class="Expression">
+                <img class="image-icon" src="static/{{ .Status }}.png" alt=""> 
+                <div class="Box-example-result">
+                  <p class="Example-result">{{.Expr}}={{ .Answer }}</p>
+                </div>
               </div>
-              <div>
-                <p class="lead text-left">Time send: {{ .TimeSend }}</p>
-                <p class="lead text-left">Solution time: {{ .TimeSolve }}</p>
+              <div class="Time-info">
+                <h2>Time info</h2>
+                <ul class="Time-box">
+                  <li class="Time-shipment">Time send: {{ .TimeSend }}</li>
+                  <li class="Time-decisions">Solution time: {{ .TimeSolve }}</li>
+                </ul>
               </div>
             </div>
-          </div>
+          </div> 
         {{end}}
       </div>
+
     </main>
     
     <footer class="mastfoot mt-auto">

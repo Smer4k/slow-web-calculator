@@ -132,7 +132,13 @@ func (o *Orchestrator) CheckAndUpdateExpression(task datatypes.Task) {
 				val.Status = datatypes.Done
 				o.ListExpr[task.Id].ListSubExpr[task.IndexExpression].Status = datatypes.Done
 				o.SetStatusNeighborsMultiDivision(task.Id, task.IndexExpression)
-
+				if len(task.OtherUses) != 0 && !IsMultiOrDivision(o.ListExpr[task.Id].ListSubExpr[task.IndexExpression].Operator) {
+					val.Status = datatypes.Done
+					o.ListExpr[task.Id].ListSubExpr[task.IndexExpression].Status = datatypes.Done
+					for _, valI := range task.OtherUses {
+						o.ListExpr[task.Id].ListSubExpr[valI].Status = datatypes.Done 
+					}
+				}
 			} else if IsMultiOrDivision(o.ListExpr[task.Id].ListSubExpr[task.IndexExpression].Operator) && IsMultiOrDivision(o.ListExpr[task.Id].ListSubExpr[task.IndexExpression+1].Operator) {
 				// если это и левое выражение является * или /
 				val.Status = datatypes.Work
@@ -146,8 +152,8 @@ func (o *Orchestrator) CheckAndUpdateExpression(task datatypes.Task) {
 			} else if len(task.OtherUses) != 0 && !IsMultiOrDivision(o.ListExpr[task.Id].ListSubExpr[task.IndexExpression].Operator) {
 				val.Status = datatypes.Done
 				o.ListExpr[task.Id].ListSubExpr[task.IndexExpression].Status = datatypes.Done
-				for _, val := range task.OtherUses {
-					o.ListExpr[task.Id].ListSubExpr[val].Status = datatypes.Done
+				for _, valI := range task.OtherUses {
+					o.ListExpr[task.Id].ListSubExpr[valI].Status = datatypes.Done
 				}
 			} else {
 				val.Status = datatypes.Done

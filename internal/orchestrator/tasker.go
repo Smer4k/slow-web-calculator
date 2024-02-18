@@ -32,6 +32,20 @@ func (o *Orchestrator) GetTask(agentURL string) (datatypes.Task, bool) {
 			expr := data.ListPriority[i]
 
 			if expr.Status == datatypes.Idle {
+				allMultiDivisionSolv := true
+
+				for i := 0; i < len(data.ListPriority); i++ {
+					if data.ListSubExpr[data.ListPriority[i].Index].Status != datatypes.Done && IsMultiOrDivision(data.ListSubExpr[data.ListPriority[i].Index].Operator) && !IsMultiOrDivision(data.ListSubExpr[expr.Index].Operator) {
+						allMultiDivisionSolv = false
+						break
+					} else if !IsMultiOrDivision(data.ListSubExpr[data.ListPriority[i].Index].Operator) {
+						break
+					}
+				}
+				if !allMultiDivisionSolv {
+					continue
+				}
+
 				var newTask datatypes.Task
 				otherUses := make([]int, 0, 2)
 				if expr.Index == 0 { // если это первое выражение
@@ -67,6 +81,22 @@ func (o *Orchestrator) GetTask(agentURL string) (datatypes.Task, bool) {
 				}
 
 				copyExpr := data.ListSubExpr[expr.Index]
+				nextExpr := false
+				for i := expr.Index-1; i >= 0; i-- {
+					if data.ListSubExpr[i].Operator == "-" && data.ListSubExpr[i].Answer == "" {
+						if !IsMultiOrDivision(copyExpr.Operator) {
+							nextExpr = true
+							break
+						}
+					}
+				}
+				if nextExpr {
+					continue
+				}
+
+				if copyExpr.Operator == "-" && data.ListSubExpr[expr.Index-1].Answer == "" {
+					continue
+				}
 
 				// если левое или правое выражение обрабатывается, то переходим к другому
 				if data.ListSubExpr[expr.Index-1].Status == datatypes.Work {

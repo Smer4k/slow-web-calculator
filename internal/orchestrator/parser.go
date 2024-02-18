@@ -12,7 +12,7 @@ func (o *Orchestrator) IsValidExpression(s string) (bool, error) {
 	if len(s) <= 2 { // выражение должно хотя бы быть формата "2+2"
 		return false, errors.New("невалидное выражение, выражение слишком маленькое")
 	}
-	if strings.ContainsAny(s, "№!@#$%^&()~`qwertyuiop[]\\asdfghjkl;'zxcvbnm,?йцукенгшщзхъфывапролджэячсмитьбю|\":_ё=") {
+	if strings.ContainsAny(s, "№!@#$%^&()~`qwertyuiop[]\\asdfghjkl;'zxcvbnm,?йцукенгшщзхъфывапролджэячсмитьбю|\":_ё=.") {
 		return false, errors.New("невалидное выражение, выражение содержит недопустимые символы")
 	}
 

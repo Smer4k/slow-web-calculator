@@ -5,7 +5,6 @@ import (
 	"html/template"
 	"math/rand"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -125,7 +124,7 @@ func (o *Orchestrator) CheckAndUpdateExpression(task datatypes.Task) {
 		}
 	}
 
-	o.ListExpr[task.Id].ListSubExpr[task.IndexExpression].Answer = strconv.FormatFloat(task.Answer, 'g', -1, 64)
+	o.ListExpr[task.Id].ListSubExpr[task.IndexExpression].Answer = task.Answer
 
 	for key, val := range o.ListExpr[task.Id].ListPriority {
 		if val.Index == task.IndexExpression {
@@ -160,7 +159,7 @@ func (o *Orchestrator) CheckAndUpdateExpression(task datatypes.Task) {
 			val := o.ListExpr[task.Id].ListSubExpr[i]
 			if IsMultiOrDivision(val.Operator) { // заменяет ответ у соседних * и / на новый ответ
 				if val.Answer != "" {
-					o.ListExpr[task.Id].ListSubExpr[i].Answer = strconv.FormatFloat(task.Answer, 'g', -1, 64)
+					o.ListExpr[task.Id].ListSubExpr[i].Answer = task.Answer
 				} else {
 					break
 				}
@@ -170,7 +169,7 @@ func (o *Orchestrator) CheckAndUpdateExpression(task datatypes.Task) {
 		}
 	} else {
 		for _, val := range task.OtherUses { // заменяет ответ у левого и правого выражения
-			o.ListExpr[task.Id].ListSubExpr[val].Answer = strconv.FormatFloat(task.Answer, 'g', -1, 64)
+			o.ListExpr[task.Id].ListSubExpr[val].Answer = task.Answer
 		}
 	}
 

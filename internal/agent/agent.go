@@ -3,11 +3,11 @@ package agent
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"strconv"
 	"time"
-	"math/rand"
 
 	"github.com/Smer4k/slow-web-calculator/internal/datatypes"
 	"github.com/gorilla/mux"
@@ -126,14 +126,14 @@ func (a *Agent) SolveExpression() {
 	case "/":
 		total = leftNum / rightNum
 	}
-	a.CurrentTask.Answer = total
+	a.CurrentTask.Answer = strconv.FormatFloat(total, 'g', -1, 64)
 	fmt.Println("Задача решена, ответ: ", total)
 	go a.PostAnswer()
 }
 
 // проверяет работоспособность оркестра и делает запрос на получение задачи если агент стоит без дела
 func (a *Agent) PingMainServer() {
-	
+
 	ticker := time.NewTicker(time.Duration((float32(5) + rand.Float32())) * time.Second)
 	failConnect := false
 	go func() {
